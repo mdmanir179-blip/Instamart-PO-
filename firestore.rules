@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'mdmanir179@gmail.com' ||
+        (request.auth.token.email != null && request.auth.token.email.matches('.*@instamart\\.admin.*'))
+      );
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSuperAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().role == 'admin');
+    }
+
+    function isActiveUser() {
+      return isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && getUserData().isActive == true);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read, write: if true;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Anyone signed in can read user records (to display creator name, etc.)
+      allow read: if isSignedIn();
+      // User can create their own profile during signup
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Admin can update any profile (e.g. toggle active/inactive or role), users can update their own displayName/employeeId
+      allow update: if isSignedIn() && (isAdmin() || request.auth.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    // Item Master collection
+    match /items/{itemId} {
+      // Read items for auto-populating item name
+      allow read: if isSignedIn();
+      // Admin only can add, edit, or delete items
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Purchase Orders collection
+    match /purchase_orders/{poId} {
+      allow read: if isSignedIn();
+      // Active users can create new POs
+      allow create: if isActiveUser();
+      
+      // Update rules:
+      // If the PO is in 'In Transit', or has pickupStatus == 'YES', only Admin can update
+      // Otherwise, any active employee can update
+      allow update: if isActiveUser() && (
+        isAdmin() || 
+        (resource.data.pickupStatus != 'YES' && resource.data.status != 'In Transit')
+      );
+      
+      // Only Admin can delete POs
+      allow delete: if isAdmin();
+    }
+
+    // DN Records collection
+    match /dn_records/{dnId} {
+      allow read: if isSignedIn();
+      // Active users (Warehouse or Backoffice or Admin) can create and update DNs
+      allow create, update: if isActiveUser();
+      allow delete: if isAdmin();
+    }
+  }
+}

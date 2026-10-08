@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered employee user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "Backoffice", "Warehouse"] },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "displayName", "employeeId", "role", "isActive"]
+    },
+    "ItemMaster": {
+      "title": "ItemMaster",
+      "description": "Catalog item with SKU/Item ID and Item Name",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "category": { "type": "string" },
+        "unit": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedBy": { "type": "string" }
+      },
+      "required": ["itemId", "itemName"]
+    },
+    "PurchaseOrder": {
+      "title": "PurchaseOrder",
+      "description": "Instamart Purchase Order with full logistics and tracking details",
+      "type": "object",
+      "properties": {
+        "poNumber": { "type": "string" },
+        "orderDate": { "type": "string" },
+        "warehouseName": { "type": "string" },
+        "items": { "type": "array" },
+        "totalQty": { "type": "number" },
+        "invoiceNo": { "type": "string" },
+        "shipDate": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "appointmentDate": { "type": "string" },
+        "so": { "type": "string" },
+        "status": { "type": "string", "enum": ["New PO", "In Transit", "Inwarded", "GRN Completed", "Cancelled"] },
+        "noOfBoxes": { "type": "number" },
+        "boxDimensions": { "type": "string" },
+        "logisticsPortal": { "type": "string" },
+        "pickupTrackingId": { "type": "string" },
+        "puc": { "type": "string" },
+        "asn": { "type": "string" },
+        "clearBagNo": { "type": "string" },
+        "comment": { "type": "string" },
+        "pickupStatus": { "type": "string", "enum": ["YES", "NO"] },
+        "hasDN": { "type": "boolean" },
+        "grnNumber": { "type": "string" },
+        "grnDate": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdByEmpId": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedByName": { "type": "string" },
+        "updatedByEmpId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["poNumber", "warehouseName", "pickupStatus", "status"]
+    },
+    "DNRecord": {
+      "title": "DNRecord",
+      "description": "Instamart Debit Note / Discrepancy Note record",
+      "type": "object",
+      "properties": {
+        "dnNumber": { "type": "string" },
+        "dnDate": { "type": "string" },
+        "facilityName": { "type": "string" },
+        "parentPoNumber": { "type": "string" },
+        "parentPoDate": { "type": "string" },
+        "parentSo": { "type": "string" },
+        "skuId": { "type": "string" },
+        "itemName": { "type": "string" },
+        "dnQty": { "type": "number" },
+        "whPocName": { "type": "string" },
+        "whPocContact": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "fileData": { "type": "string" },
+        "fileType": { "type": "string" },
+        "lrNo": { "type": "string" },
+        "trackingNo": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "Accepted", "Dispatched", "Closed"] },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "createdByEmpId": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedByName": { "type": "string" },
+        "updatedByEmpId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["dnNumber", "facilityName", "parentPoNumber", "skuId", "dnQty"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile with role and active status"
+    },
+    "/items/{itemId}": {
+      "schema": "ItemMaster",
+      "description": "Item master catalog managed by admin"
+    },
+    "/purchase_orders/{poId}": {
+      "schema": "PurchaseOrder",
+      "description": "Purchase orders with lifecycle stages"
+    },
+    "/dn_records/{dnId}": {
+      "schema": "DNRecord",
+      "description": "Debit note records and tracking"
+    }
+  }
+}

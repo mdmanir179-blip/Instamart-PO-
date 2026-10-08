@@ -1,0 +1,6 @@
+{
+  "name": "Instamart PO & Supply Chain Logistics Portal",
+  "description": "Comprehensive Purchase Order (PO) lifecycle management, In-Transit dispatch tracking, Warehouse Inwarding, GRN verification, and Instamart DN Tracker with multi-role access control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
