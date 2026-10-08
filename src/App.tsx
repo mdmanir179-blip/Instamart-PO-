@@ -24,6 +24,7 @@ import { PoDetailModal } from './components/PoDetailModal';
 import { ExportBar } from './components/ExportBar';
 import { OfflineSheetView } from './components/OfflineSheetView';
 import { DashboardView } from './components/DashboardView';
+import { ExpiryNotificationModal } from './components/ExpiryNotificationModal';
 import { 
   Package, 
   Truck, 
@@ -281,6 +282,7 @@ function MainApp() {
 
   const [isItemsModalOpen, setIsItemsModalOpen] = useState(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState(false);
+  const [isExpiryModalOpen, setIsExpiryModalOpen] = useState(false);
 
   // Expiry calculation for Header badge
   const expiringTodayCount = purchaseOrders.reduce((count, po) => {
@@ -664,7 +666,7 @@ function MainApp() {
   // Not logged in view: Show Auth Screen matching screenshots!
   if (!currentUser) {
     return (
-      <div className={`min-h-screen ${theme === 'dark' ? 'bg-zinc-950 text-white' : 'bg-slate-50 text-slate-900'} flex flex-col justify-center items-center`}>
+      <div className={`min-h-screen ${theme === 'dark' ? 'bg-[#0b1120] text-slate-100' : 'bg-[#f1f5f9] text-slate-800'} flex flex-col justify-center items-center`}>
         <AuthModal isOpen={true} />
       </div>
     );
@@ -673,10 +675,10 @@ function MainApp() {
   return (
     <div className={`min-h-screen transition-colors ${
       theme === 'dark' 
-        ? 'bg-zinc-950 text-zinc-100' 
+        ? 'bg-[#0b1120] text-slate-200' 
         : theme === 'grey' 
-        ? 'bg-slate-900 text-slate-100' 
-        : 'bg-[#f8fafc] text-slate-900'
+        ? 'bg-[#1e293b] text-slate-100' 
+        : 'bg-[#f1f5f9] text-slate-800'
     }`}>
       {/* Header with Live Expiry notification counter */}
       <Header
@@ -687,6 +689,7 @@ function MainApp() {
         onOpenNewPoModal={() => { setEditingPo(null); setIsPoModalOpen(true); }}
         onOpenNewDnModal={() => { setEditingDn(null); setIsDnModalOpen(true); }}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenExpiryModal={() => setIsExpiryModalOpen(true)}
         expiringCount={expiringTodayCount}
       />
 
@@ -698,29 +701,20 @@ function MainApp() {
         </div>
       )}
 
-      {/* Container - Desktop vs Mobile Preview Frame Mode */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className={isMobilePreview ? 'max-w-md mx-auto bg-white dark:bg-zinc-900 border-8 border-slate-800 rounded-[40px] shadow-2xl overflow-hidden p-3 min-h-[750px] relative' : ''}>
-          
-          {isMobilePreview && (
-            <div className="flex items-center justify-between px-4 pt-1 pb-3 text-xs font-semibold text-slate-500 border-b border-slate-200 dark:border-zinc-800 mb-3">
-              <span className="font-mono">9:41 AM</span>
-              <div className="w-20 h-4 bg-slate-800 rounded-full" />
-              <span>5G 100%</span>
-            </div>
-          )}
-
+      {/* Container - Desktop Computer Full Screen Layout */}
+      <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-5">
+        <div>
           {/* Navigation Tabs Bar */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/80 dark:bg-zinc-800/80 rounded-2xl mb-6 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/60 border border-slate-300/40 dark:border-slate-700/50 rounded-2xl mb-6 overflow-x-auto">
             
             {/* 1. Dashboard Tab */}
             <button
               type="button"
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'dashboard'
-                  ? 'bg-white dark:bg-zinc-900 text-orange-600 dark:text-orange-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <LayoutDashboard className="w-4 h-4" />
@@ -734,10 +728,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('all_pos')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'all_pos'
-                  ? 'bg-white dark:bg-zinc-900 text-orange-600 dark:text-orange-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Package className="w-4 h-4" />
@@ -748,10 +742,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('in_transit')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'in_transit'
-                  ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Truck className="w-4 h-4" />
@@ -762,10 +756,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('grn')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'grn'
-                  ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <FileCheck className="w-4 h-4" />
@@ -776,10 +770,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('dn_tracker')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'dn_tracker'
-                  ? 'bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -790,10 +784,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('offline_sheet')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'offline_sheet'
-                  ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <FileSpreadsheet className="w-4 h-4 text-teal-600" />
@@ -804,10 +798,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('catalog')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'catalog'
-                  ? 'bg-white dark:bg-zinc-900 text-purple-600 dark:text-purple-400 shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Database className="w-4 h-4" />
@@ -818,10 +812,10 @@ function MainApp() {
             <button
               type="button"
               onClick={() => setActiveTab('analytics')}
-              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'analytics'
-                  ? 'bg-white dark:bg-zinc-900 text-slate-800 dark:text-white shadow-xs'
-                  : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <TrendingUp className="w-4 h-4" />
@@ -838,6 +832,7 @@ function MainApp() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenNewPo={() => { setEditingPo(null); setIsPoModalOpen(true); }}
               onOpenNewDn={() => { setEditingDn(null); setIsDnModalOpen(true); }}
+              onOpenExpiryCenter={() => setIsExpiryModalOpen(true)}
             />
           )}
 
@@ -1755,6 +1750,16 @@ function MainApp() {
       <UserManagementModal
         isOpen={isUsersModalOpen}
         onClose={() => setIsUsersModalOpen(false)}
+      />
+
+      <ExpiryNotificationModal
+        isOpen={isExpiryModalOpen}
+        onClose={() => setIsExpiryModalOpen(false)}
+        purchaseOrders={purchaseOrders}
+        onSelectPo={(po) => {
+          setDetailPo(po);
+          setIsDetailModalOpen(true);
+        }}
       />
     </div>
   );

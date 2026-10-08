@@ -38,8 +38,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [selectedDept, setSelectedDept] = useState<Department>('Backoffice Team');
   const [employeeName, setEmployeeName] = useState('');
   const [employeeId, setEmployeeId] = useState('');
-  const [email, setEmail] = useState('manishankarmandal6@gmail.com');
-  const [password, setPassword] = useState('••••••');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   
   const [error, setError] = useState<string | null>(null);
   const [loadingAction, setLoadingAction] = useState(false);
@@ -291,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 </div>
               )}
 
-              {/* Email & Password (Shown in 2 columns in Image 2, and side-by-side or stacked in Image 1) */}
+              {/* Email & Password */}
               <div className={mode === 'signup' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : 'grid grid-cols-1 sm:grid-cols-2 gap-3'}>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1">
@@ -300,10 +300,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <input
                     type="email"
                     required
-                    placeholder="manishankarmandal6@gmail.com"
+                    placeholder="employee.name@instamart.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-[#eef4ff] dark:bg-blue-950/30 border border-slate-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 dark:text-zinc-100 font-medium"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-800 dark:text-zinc-100 font-medium transition"
                   />
                 </div>
 
@@ -314,19 +314,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                   <input
                     type="password"
                     required
-                    placeholder="••••••"
+                    placeholder="Enter password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-[#eef4ff] dark:bg-blue-950/30 border border-slate-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-slate-900 dark:text-zinc-100 font-medium tracking-widest"
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none text-slate-800 dark:text-zinc-100 font-medium transition"
                   />
                 </div>
               </div>
 
-              {/* Big Orange Submit Button matching Image: "Log In to Portal ->" or "Sign Up & Create Account ->" */}
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loadingAction}
-                className="w-full py-2.5 px-4 bg-[#fa5300] hover:bg-[#e04a00] text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 mt-4"
+                className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2 mt-4 cursor-pointer"
               >
                 <span>
                   {mode === 'login' ? 'Log In to Portal' : 'Sign Up & Create Account'}
