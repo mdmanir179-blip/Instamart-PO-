@@ -83,19 +83,18 @@ export const DNModal: React.FC<DNModalProps> = ({
       setFileType(editingDn.fileType);
     } else {
       const today = new Date().toISOString().split('T')[0];
-      const rand = Math.floor(1000 + Math.random() * 9000);
       setDnDate(today);
-      setDnNumber(`DN-INST-${rand}`);
-      setFacilityName(DEFAULT_WAREHOUSES[0]);
+      setDnNumber('');
+      setFacilityName('');
       setParentPoNumber('');
-      setParentPoDate(today);
+      setParentPoDate('');
       setParentSo('');
-      setSkuId(itemsCatalog[0]?.itemId || '');
-      setItemName(itemsCatalog[0]?.itemName || '');
+      setSkuId('');
+      setItemName('');
       setDnQty(1);
-      setWhPocName(userProfile?.displayName || 'Rajesh WH Manager');
-      setWhPocContact('+91 98765 43210');
-      setLrNo(`LR-${rand}`);
+      setWhPocName(userProfile?.displayName || '');
+      setWhPocContact('');
+      setLrNo('');
       setTrackingNo('');
       setStatus('Pending');
       setFileName(undefined);

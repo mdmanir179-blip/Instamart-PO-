@@ -96,6 +96,69 @@ const INITIAL_DEMO_POS: PurchaseOrder[] = [
     updatedAt: new Date().toISOString(),
   },
   {
+    id: 'po-demo-today-2',
+    poNumber: 'PO-INST-2026-9140',
+    orderDate: TODAY_DATE,
+    warehouseName: DEFAULT_WAREHOUSES[1],
+    items: [
+      { itemId: 'INST-SKU-1004', itemName: 'Tata Salt Vaccum Evaporated Iodised 1kg', qty: 180, boxCount: 12 },
+      { itemId: 'INST-SKU-1007', itemName: 'Coca-Cola Zero Sugar Can 300ml', qty: 120, boxCount: 6 }
+    ],
+    totalQty: 300,
+    invoiceNo: 'INV-WB-4415',
+    shipDate: TODAY_DATE,
+    appointmentId: 'APT-KOL-9011',
+    appointmentDate: TODAY_DATE,
+    so: 'SO-IN-7780',
+    status: 'In Transit',
+    noOfBoxes: 18,
+    boxDimensions: '45 x 35 x 30 cm',
+    logisticsPortal: 'Instamart Dedicated Fleet',
+    pickupTrackingId: 'INST-FLT-4102',
+    puc: 'PUC-915',
+    asn: 'ASN-KOL-05',
+    clearBagNo: 'CBG-430',
+    comment: 'Afternoon rapid replenishment darkstore run.',
+    pickupStatus: 'YES',
+    hasDN: false,
+    createdBy: 'admin-manir',
+    createdByName: 'Md Manir (System Admin)',
+    createdByEmpId: 'EMP-ADM-001',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'po-demo-yesterday',
+    poNumber: 'PO-INST-2026-8955',
+    orderDate: '2026-10-07',
+    warehouseName: DEFAULT_WAREHOUSES[0],
+    items: [
+      { itemId: 'INST-SKU-1003', itemName: 'Fortune Sunlite Refined Sunflower Oil 1L Pouch', qty: 240, boxCount: 24 }
+    ],
+    totalQty: 240,
+    invoiceNo: 'INV-WB-4399',
+    shipDate: '2026-10-08',
+    appointmentId: 'APT-KOL-8890',
+    appointmentDate: '2026-10-08',
+    so: 'SO-IN-7705',
+    status: 'In Transit',
+    noOfBoxes: 24,
+    boxDimensions: '50 x 35 x 30 cm',
+    logisticsPortal: 'Delhivery Logistics',
+    pickupTrackingId: 'DEL-TRK-9870',
+    puc: 'PUC-898',
+    asn: 'ASN-KOL-03',
+    clearBagNo: 'CBG-425',
+    comment: 'Edible oils restock shipment dispatched to Kolkata Central darkstore.',
+    pickupStatus: 'YES',
+    hasDN: false,
+    createdBy: 'emp-bo-102',
+    createdByName: 'Rohit Sharma (Backoffice Lead)',
+    createdByEmpId: 'EMP-BO-102',
+    createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
     id: 'po-demo-02',
     poNumber: 'PO-INST-2026-8840',
     orderDate: '2026-10-06',
@@ -124,7 +187,7 @@ const INITIAL_DEMO_POS: PurchaseOrder[] = [
     createdBy: 'emp-bo-102',
     createdByName: 'Rohit Sharma (Backoffice Lead)',
     createdByEmpId: 'EMP-BO-102',
-    createdAt: new Date(Date.now() - 3600000 * 20).toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
@@ -157,7 +220,106 @@ const INITIAL_DEMO_POS: PurchaseOrder[] = [
     createdBy: 'emp-bo-102',
     createdByName: 'Rohit Sharma (Backoffice Lead)',
     createdByEmpId: 'EMP-BO-102',
-    createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 60).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'po-demo-04',
+    poNumber: 'PO-INST-2026-6990',
+    orderDate: '2026-10-04',
+    warehouseName: DEFAULT_WAREHOUSES[3],
+    items: [
+      { itemId: 'INST-SKU-1008', itemName: 'Lays India\'s Magic Masala Potato Chips 50g', qty: 400, boxCount: 20 }
+    ],
+    totalQty: 400,
+    invoiceNo: 'INV-MUM-8812',
+    shipDate: '2026-10-05',
+    appointmentId: 'APT-MUM-3310',
+    appointmentDate: '2026-10-05',
+    so: 'SO-MUM-441',
+    status: 'GRN Completed',
+    noOfBoxes: 20,
+    boxDimensions: '50 x 40 x 30 cm',
+    logisticsPortal: 'BlueDart Express',
+    pickupTrackingId: 'BLU-TRK-6612',
+    puc: 'PUC-662',
+    asn: 'ASN-MUM-11',
+    clearBagNo: 'CBG-305',
+    comment: 'Snack inventory inward verified at Andheri West darkstore.',
+    pickupStatus: 'YES',
+    hasDN: false,
+    grnNumber: 'GRN-INST-69901',
+    grnDate: '2026-10-06',
+    createdBy: 'emp-bo-102',
+    createdByName: 'Rohit Sharma (Backoffice Lead)',
+    createdByEmpId: 'EMP-BO-102',
+    createdAt: new Date(Date.now() - 3600000 * 84).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'po-demo-05',
+    poNumber: 'PO-INST-2026-6420',
+    orderDate: '2026-10-03',
+    warehouseName: DEFAULT_WAREHOUSES[0],
+    items: [
+      { itemId: 'INST-SKU-1001', itemName: 'Amul Taaza Homogenised Toned Milk 1L', qty: 250, boxCount: 20 }
+    ],
+    totalQty: 250,
+    invoiceNo: 'INV-WB-4288',
+    shipDate: '2026-10-04',
+    appointmentId: 'APT-KOL-8601',
+    appointmentDate: '2026-10-04',
+    so: 'SO-IN-7520',
+    status: 'GRN Completed',
+    noOfBoxes: 20,
+    boxDimensions: '45 x 35 x 30 cm',
+    logisticsPortal: 'Instamart Dedicated Fleet',
+    pickupTrackingId: 'INST-FLT-2910',
+    puc: 'PUC-840',
+    asn: 'ASN-KOL-01',
+    clearBagNo: 'CBG-395',
+    comment: 'Morning milk delivery accepted and GRN closed.',
+    pickupStatus: 'YES',
+    hasDN: false,
+    grnNumber: 'GRN-INST-64201',
+    grnDate: '2026-10-04',
+    createdBy: 'admin-manir',
+    createdByName: 'Md Manir (System Admin)',
+    createdByEmpId: 'EMP-ADM-001',
+    createdAt: new Date(Date.now() - 3600000 * 108).toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'po-demo-06',
+    poNumber: 'PO-INST-2026-6101',
+    orderDate: '2026-10-02',
+    warehouseName: DEFAULT_WAREHOUSES[2],
+    items: [
+      { itemId: 'INST-SKU-1002', itemName: 'Aashirvaad Superior MP Shudh Chakki Atta 5kg', qty: 100, boxCount: 10 }
+    ],
+    totalQty: 100,
+    invoiceNo: 'INV-BLR-0994',
+    shipDate: '2026-10-03',
+    appointmentId: 'APT-BLR-5110',
+    appointmentDate: '2026-10-03',
+    so: 'SO-BLR-810',
+    status: 'GRN Completed',
+    noOfBoxes: 10,
+    boxDimensions: '50 x 40 x 30 cm',
+    logisticsPortal: 'Delhivery Logistics',
+    pickupTrackingId: 'DEL-TRK-8810',
+    puc: 'PUC-710',
+    asn: 'ASN-BLR-04',
+    clearBagNo: 'CBG-190',
+    comment: 'Pantry staples shipment complete.',
+    pickupStatus: 'YES',
+    hasDN: false,
+    grnNumber: 'GRN-INST-61010',
+    grnDate: '2026-10-03',
+    createdBy: 'admin-manir',
+    createdByName: 'Md Manir (System Admin)',
+    createdByEmpId: 'EMP-ADM-001',
+    createdAt: new Date(Date.now() - 3600000 * 132).toISOString(),
     updatedAt: new Date().toISOString(),
   }
 ];
@@ -210,7 +372,12 @@ function MainApp() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
     try {
       const saved = localStorage.getItem('instamart_pos');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= 6) {
+          return parsed;
+        }
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -881,6 +1048,22 @@ function MainApp() {
 
               {/* Primary Action Buttons */}
               <div className="flex items-center gap-2">
+                {activeTab === 'all_pos' && purchaseOrders.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to clear all POs and start with an empty table?')) {
+                        setPurchaseOrders([]);
+                        localStorage.setItem('instamart_pos', JSON.stringify([]));
+                      }
+                    }}
+                    className="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
+                    title="Clear all PO records to start with an empty sheet"
+                  >
+                    Clear All POs
+                  </button>
+                )}
+
                 {activeTab === 'dn_tracker' ? (
                   <button
                     type="button"

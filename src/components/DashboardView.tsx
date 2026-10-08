@@ -20,7 +20,8 @@ import {
   Filter,
   ExternalLink,
   ShieldAlert,
-  Compass
+  Compass,
+  X
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -48,6 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [trendMetric, setTrendMetric] = useState<'all' | 'inflow' | 'dispatch'>('all');
   const [hoveredTrendIdx, setHoveredTrendIdx] = useState<number | null>(null);
   const [selectedFleet, setSelectedFleet] = useState<string | null>(null);
+  const [selectedTrendDayIdx, setSelectedTrendDayIdx] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -293,6 +295,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       areaDispatch,
     };
   }, [weeklyTrendData, maxTrendValue]);
+
+  // Selected Day Drill-down Data
+  const selectedTrendDay = useMemo(() => {
+    if (selectedTrendDayIdx === null) return null;
+    return weeklyTrendData[selectedTrendDayIdx] || null;
+  }, [selectedTrendDayIdx, weeklyTrendData]);
+
+  const selectedDayPOs = useMemo(() => {
+    if (!selectedTrendDay) return [];
+    return purchaseOrders.filter((po) => {
+      const orderD = normalizeDate(po.orderDate) || normalizeDate(po.createdAt);
+      const shipD = normalizeDate(po.shipDate);
+      const updateD = normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
+      const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.pickupStatus === 'YES';
+      return (
+        orderD === selectedTrendDay.dateKey ||
+        (isDispatched && (shipD === selectedTrendDay.dateKey || updateD === selectedTrendDay.dateKey))
+      );
+    });
+  }, [selectedTrendDay, purchaseOrders]);
 
   // ==========================================
   // 2. DYNAMIC LOGISTICS FLEET SHARE DATA MODEL
@@ -652,21 +674,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </linearGradient>
                   </defs>
 
-                  {/* Horizontal Guide Lines */}
-                  {[0.2, 0.5, 0.8].map((pct, idx) => {
+                  {/* Left Y-Axis Scale Markers & Horizontal Guide Lines */}
+                  {[0.1, 0.5, 0.9].map((pct, idx) => {
                     const y = chartCoordinates.paddingY + pct * (chartCoordinates.height - chartCoordinates.paddingY * 2);
+                    const val = Math.round(maxTrendValue * (1 - pct));
                     return (
-                      <line
-                        key={idx}
-                        x1={chartCoordinates.paddingX}
-                        y1={y}
-                        x2={chartCoordinates.width - chartCoordinates.paddingX}
-                        y2={y}
-                        stroke="currentColor"
-                        className="text-slate-200 dark:text-slate-800"
-                        strokeDasharray="4 4"
-                        strokeWidth="1"
-                      />
+                      <g key={idx}>
+                        <text
+                          x={chartCoordinates.paddingX - 8}
+                          y={y + 3}
+                          textAnchor="end"
+                          fontSize="9"
+                          fill="currentColor"
+                          className="text-slate-400 select-none font-mono"
+                        >
+                          {val}
+                        </text>
+                        <line
+                          x1={chartCoordinates.paddingX}
+                          y1={y}
+                          x2={chartCoordinates.width - 15}
+                          y2={y}
+                          stroke="currentColor"
+                          className="text-slate-200 dark:text-slate-800"
+                          strokeDasharray="4 4"
+                          strokeWidth="1"
+                        />
+                      </g>
                     );
                   })}
 
@@ -706,25 +740,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     />
                   )}
 
-                  {/* Nodes & Hover Interactivity */}
+                  {/* Nodes & Hover / Click Interactivity */}
                   {weeklyTrendData.map((day, idx) => {
                     const ptInflow = chartCoordinates.pointsInflow[idx];
                     const ptDispatch = chartCoordinates.pointsDispatch[idx];
                     const isHovered = hoveredTrendIdx === idx;
+                    const isSelected = selectedTrendDayIdx === idx;
 
                     return (
-                      <g key={idx}>
-                        {/* Hover vertical hairline */}
-                        {isHovered && (
+                      <g key={idx} className="cursor-pointer" onClick={() => setSelectedTrendDayIdx(selectedTrendDayIdx === idx ? null : idx)}>
+                        {/* Hover / Selected vertical hairline */}
+                        {(isHovered || isSelected) && (
                           <line
                             x1={ptInflow.x}
                             y1={chartCoordinates.paddingY}
                             x2={ptInflow.x}
                             y2={chartCoordinates.bottomY}
-                            stroke="#64748b"
-                            strokeWidth="1.5"
-                            strokeDasharray="3 3"
-                            opacity="0.6"
+                            stroke={isSelected ? '#2563eb' : '#64748b'}
+                            strokeWidth={isSelected ? '2' : '1.5'}
+                            strokeDasharray={isSelected ? 'none' : '3 3'}
+                            opacity={isSelected ? '0.9' : '0.6'}
                           />
                         )}
 
@@ -733,11 +768,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <circle
                             cx={ptInflow.x}
                             cy={ptInflow.y}
-                            r={isHovered ? 6 : 4}
+                            r={isSelected ? 7 : (isHovered ? 6 : 4)}
                             fill="#ffffff"
                             stroke="#2563eb"
-                            strokeWidth={isHovered ? 3 : 2}
-                            className="transition-all cursor-pointer"
+                            strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
+                            className="transition-all"
                             onMouseEnter={() => setHoveredTrendIdx(idx)}
                             onMouseLeave={() => setHoveredTrendIdx(null)}
                           />
@@ -748,17 +783,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <circle
                             cx={ptDispatch.x}
                             cy={ptDispatch.y}
-                            r={isHovered ? 6 : 4}
+                            r={isSelected ? 7 : (isHovered ? 6 : 4)}
                             fill="#ffffff"
                             stroke="#059669"
-                            strokeWidth={isHovered ? 3 : 2}
-                            className="transition-all cursor-pointer"
+                            strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
+                            className="transition-all"
                             onMouseEnter={() => setHoveredTrendIdx(idx)}
                             onMouseLeave={() => setHoveredTrendIdx(null)}
                           />
                         )}
 
-                        {/* Invisible hover trigger column */}
+                        {/* Invisible click & hover trigger column */}
                         <rect
                           x={ptInflow.x - 24}
                           y={chartCoordinates.paddingY}
@@ -776,9 +811,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           y={chartCoordinates.height - 4}
                           textAnchor="middle"
                           fontSize="10"
-                          fontWeight={day.isToday ? 'bold' : 'normal'}
+                          fontWeight={isSelected || day.isToday ? 'bold' : 'normal'}
                           fill="currentColor"
-                          className={day.isToday ? 'text-blue-600 font-bold' : 'text-slate-500'}
+                          className={isSelected ? 'text-blue-600 font-black' : (day.isToday ? 'text-blue-600 font-bold' : 'text-slate-500')}
                         >
                           {day.dayLabel}
                         </text>
@@ -789,7 +824,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 {/* Floating Tooltip when hovering over trendline */}
                 {hoveredTrendIdx !== null && (
-                  <div className="absolute top-2 right-4 bg-slate-900 text-white text-xs p-2.5 rounded-xl shadow-lg border border-slate-700 pointer-events-none transition animate-in fade-in">
+                  <div className="absolute top-2 right-4 bg-slate-900 text-white text-xs p-2.5 rounded-xl shadow-lg border border-slate-700 pointer-events-none transition animate-in fade-in z-20">
                     <div className="font-bold text-slate-200 border-b border-slate-700 pb-1 mb-1.5 flex items-center justify-between gap-3">
                       <span>{weeklyTrendData[hoveredTrendIdx].dayLabel} ({weeklyTrendData[hoveredTrendIdx].dateNum})</span>
                       {weeklyTrendData[hoveredTrendIdx].isToday && (
@@ -818,15 +853,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="h-52 w-full flex items-end justify-between gap-2 sm:gap-4 px-2 border-b border-slate-200 dark:border-slate-800 relative">
                 {weeklyTrendData.map((day, idx) => {
                   const isHovered = hoveredTrendIdx === idx;
+                  const isSelected = selectedTrendDayIdx === idx;
                   const newHeight = Math.max(16, (day.newOrders / maxTrendValue) * 100);
                   const dispatchHeight = Math.max(16, (day.dispatched / maxTrendValue) * 100);
 
                   return (
                     <div
                       key={idx}
+                      onClick={() => setSelectedTrendDayIdx(selectedTrendDayIdx === idx ? null : idx)}
                       onMouseEnter={() => setHoveredTrendIdx(idx)}
                       onMouseLeave={() => setHoveredTrendIdx(null)}
-                      className="flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer"
+                      className={`flex-1 flex flex-col items-center h-full justify-end relative group cursor-pointer p-1 rounded-xl transition ${
+                        isSelected ? 'bg-blue-50/60 dark:bg-blue-950/40 ring-2 ring-blue-500/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                      }`}
                     >
                       <div className="w-full flex items-end justify-center gap-1.5 h-full pb-1 z-10">
                         {/* Bar 1: New POs */}
@@ -859,7 +898,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {/* X-Axis Label */}
                       <div className="pt-2 text-center select-none">
                         <div className={`text-[11px] font-bold ${
-                          day.isToday ? 'text-blue-600 font-black' : 'text-slate-600 dark:text-slate-400'
+                          isSelected ? 'text-blue-600 font-black' : (day.isToday ? 'text-blue-600 font-bold' : 'text-slate-600 dark:text-slate-400')
                         }`}>
                           {day.dayLabel}
                         </div>
@@ -871,6 +910,89 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ACTIVE DAY DRILL-DOWN BREAKDOWN PANEL (Interactive on click) */}
+          {selectedTrendDay && (
+            <div className="p-3.5 bg-blue-50/50 dark:bg-slate-800/80 border border-blue-200 dark:border-slate-700 rounded-xl space-y-2.5 animate-in fade-in text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-blue-200/60 dark:border-slate-700 pb-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  <span className="font-bold text-slate-900 dark:text-white">
+                    {selectedTrendDay.dayLabel} ({selectedTrendDay.dateNum}, {selectedTrendDay.dateKey}) Consignments
+                  </span>
+                  {selectedTrendDay.isToday && (
+                    <span className="text-[10px] bg-blue-600 text-white font-bold px-1.5 py-0.2 rounded">TODAY</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-bold">
+                    {selectedTrendDay.newOrders} Received
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold">
+                    {selectedTrendDay.dispatched} Dispatched
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTrendDayIdx(null)}
+                    className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                    title="Close"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {selectedDayPOs.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {selectedDayPOs.slice(0, 4).map((po) => (
+                      <div
+                        key={po.id}
+                        className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-between shadow-xs"
+                      >
+                        <div>
+                          <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
+                            {po.poNumber}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate max-w-[170px]">
+                            {po.warehouseName} • {po.totalQty} Units
+                          </div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          po.status === 'GRN Completed'
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                            : po.status === 'In Transit'
+                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300'
+                            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                        }`}>
+                          {po.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('all_pos')}
+                    className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg transition text-center"
+                  >
+                    View All {selectedDayPOs.length} Consignments in All POs Table
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center py-2 text-xs text-slate-500 flex items-center justify-center gap-2">
+                  <span>No consignments registered on this date yet.</span>
+                  <button
+                    type="button"
+                    onClick={onOpenNewPo}
+                    className="text-blue-600 font-bold hover:underline"
+                  >
+                    + Create PO for {selectedTrendDay.dayLabel}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

@@ -106,36 +106,30 @@ export const PoModal: React.FC<PoModalProps> = ({
         { itemId: '', itemName: '', qty: 1, unitPrice: 0, boxCount: 1, remark: '' }
       ]);
     } else {
-      // Auto generate random sample PO number for convenience
-      const randNum = Math.floor(10000 + Math.random() * 90000);
-      setPoNumber(`PO-INST-${randNum}`);
+      // Clean empty form for new PO creation (no default fake dummy data)
+      setPoNumber('');
       const today = new Date().toISOString().split('T')[0];
       setOrderDate(today);
-      setShipDate(today);
-      setAppointmentDate(today);
-      setWarehouseName(DEFAULT_WAREHOUSES[0] || 'Instamart Kolkata DarkStore-01');
-      setInvoiceNo(`INV-${randNum}`);
-      setAppointmentId(`APT-${Math.floor(1000 + Math.random() * 9000)}`);
-      setSo(`SO-${randNum}`);
+      setWarehouseName('');
+      setInvoiceNo('');
+      setShipDate('');
+      setAppointmentId('');
+      setAppointmentDate('');
+      setExpiryDate('');
+      setSo('');
       setStatus('New PO');
-      setNoOfBoxes(2);
-      setBoxDimensions('45 x 35 x 30 cm');
+      setNoOfBoxes(1);
+      setBoxDimensions('');
       setLogisticsPortal('Delhivery Logistics');
-      setPickupTrackingId(`TRK-DEL-${randNum}`);
-      setPuc(`PUC-${Math.floor(100 + Math.random() * 900)}`);
-      setAsn(`ASN-${randNum}`);
-      setClearBagNo(`CBG-${Math.floor(100 + Math.random() * 900)}`);
+      setPickupTrackingId('');
+      setPuc('');
+      setAsn('');
+      setClearBagNo('');
       setComment('');
       setPickupStatus('NO');
       
-      // Default initial item from catalog if available
-      if (itemsCatalog.length > 0) {
-        setItems([
-          { itemId: itemsCatalog[0].itemId, itemName: itemsCatalog[0].itemName, qty: 10, unitPrice: 50, boxCount: 1 }
-        ]);
-      } else {
-        setItems([{ itemId: '', itemName: '', qty: 1, unitPrice: 0, boxCount: 1 }]);
-      }
+      // Clean blank item row
+      setItems([{ itemId: '', itemName: '', qty: 1, unitPrice: 0, boxCount: 1, remark: '' }]);
     }
   }, [editingPo, isOpen, itemsCatalog]);
 
