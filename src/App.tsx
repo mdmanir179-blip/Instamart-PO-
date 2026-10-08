@@ -705,7 +705,7 @@ function MainApp() {
       <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-5">
         <div>
           {/* Navigation Tabs Bar */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/60 border border-slate-300/40 dark:border-slate-700/50 rounded-2xl mb-6 overflow-x-auto">
+          <div className="flex flex-wrap items-center gap-1.5 p-1.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 rounded-2xl mb-6 overflow-x-auto">
             
             {/* 1. Dashboard Tab */}
             <button
@@ -713,7 +713,7 @@ function MainApp() {
               onClick={() => setActiveTab('dashboard')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'dashboard'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -730,7 +730,7 @@ function MainApp() {
               onClick={() => setActiveTab('all_pos')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'all_pos'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 dark:text-orange-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -744,7 +744,7 @@ function MainApp() {
               onClick={() => setActiveTab('in_transit')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'in_transit'
-                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -758,7 +758,7 @@ function MainApp() {
               onClick={() => setActiveTab('grn')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'grn'
-                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -772,7 +772,7 @@ function MainApp() {
               onClick={() => setActiveTab('dn_tracker')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'dn_tracker'
-                  ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -786,7 +786,7 @@ function MainApp() {
               onClick={() => setActiveTab('offline_sheet')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'offline_sheet'
-                  ? 'bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -800,7 +800,7 @@ function MainApp() {
               onClick={() => setActiveTab('catalog')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'catalog'
-                  ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -814,7 +814,7 @@ function MainApp() {
               onClick={() => setActiveTab('analytics')}
               className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'analytics'
-                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white border border-slate-200/90 dark:border-slate-700 shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -895,7 +895,7 @@ function MainApp() {
                     type="button"
                     onClick={() => { setEditingPo(null); setIsPoModalOpen(true); }}
                     disabled={!isActive}
-                    className="px-4 py-2 text-xs font-bold rounded-xl bg-[#fa5300] hover:bg-[#e04a00] text-white flex items-center gap-1.5 transition shadow-md shadow-orange-600/20 disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1.5 transition shadow-sm disabled:opacity-50 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" /> Create New PO
                   </button>
@@ -988,7 +988,7 @@ function MainApp() {
                           return (
                             <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition">
                               <td className="py-3 px-3">
-                                <div className="font-mono font-bold text-orange-600 dark:text-orange-400">
+                                <div className="font-mono font-bold text-blue-600 dark:text-blue-400">
                                   {po.poNumber}
                                 </div>
                                 <div className="text-[10px] text-slate-500 dark:text-zinc-400">
@@ -1246,7 +1246,7 @@ function MainApp() {
                       ) : (
                         grnPOs.map((po) => (
                           <tr key={po.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition">
-                            <td className="py-3 px-3 font-mono font-bold text-orange-600 dark:text-orange-400">
+                            <td className="py-3 px-3 font-mono font-bold text-blue-600 dark:text-blue-400">
                               {po.poNumber}
                             </td>
                             <td className="py-3 px-3 text-slate-800 dark:text-zinc-200 font-semibold">
@@ -1658,14 +1658,14 @@ function MainApp() {
               <button 
                 type="button" 
                 onClick={() => setActiveTab('dashboard')}
-                className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-orange-600' : ''}`}
+                className={`flex flex-col items-center gap-1 ${activeTab === 'dashboard' ? 'text-blue-600 font-bold' : ''}`}
               >
                 <LayoutDashboard className="w-4 h-4" /> Home
               </button>
               <button 
                 type="button" 
                 onClick={() => setActiveTab('all_pos')}
-                className={`flex flex-col items-center gap-1 ${activeTab === 'all_pos' ? 'text-orange-600' : ''}`}
+                className={`flex flex-col items-center gap-1 ${activeTab === 'all_pos' ? 'text-blue-600 font-bold' : ''}`}
               >
                 <Package className="w-4 h-4" /> POs
               </button>

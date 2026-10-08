@@ -11,8 +11,7 @@ import {
   Printer, 
   Moon, 
   Sun,
-  AlertCircle,
-  Sparkles
+  AlertCircle
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -26,7 +25,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     allUsers, 
     loginWithEmail, 
     signupWithEmail, 
-    quickDemoLogin, 
     switchUser 
   } = useAuth();
   
@@ -81,18 +79,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
     } catch (err: any) {
       setError(err.message || 'Operation failed');
-    } finally {
-      setLoadingAction(false);
-    }
-  };
-
-  const handleQuickDemo = async (role: UserRole) => {
-    setLoadingAction(true);
-    try {
-      await quickDemoLogin(role);
-      if (onClose) onClose();
-    } catch (e: any) {
-      setError(e.message);
     } finally {
       setLoadingAction(false);
     }
@@ -326,7 +312,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               <button
                 type="submit"
                 disabled={loadingAction}
-                className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2 mt-4 cursor-pointer"
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs sm:text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-2 mt-4 cursor-pointer"
               >
                 <span>
                   {mode === 'login' ? 'Log In to Portal' : 'Sign Up & Create Account'}
@@ -335,42 +321,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </button>
             </form>
 
-            {/* Quick 1-click test role access footer */}
-            <div className="mt-5 pt-3 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-              <span className="flex items-center gap-1 font-semibold text-slate-600 dark:text-zinc-300">
-                <Sparkles className="w-3 h-3 text-amber-500" /> Quick Role Access:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('admin')}
-                  className="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold text-[10px]"
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('Backoffice')}
-                  className="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-semibold text-[10px]"
-                >
-                  Backoffice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('Warehouse')}
-                  className="px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold text-[10px]"
-                >
-                  Warehouse
-                </button>
-              </div>
-            </div>
-
             {onClose && (
-              <div className="mt-3 text-center">
+              <div className="mt-4 text-center">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-[11px] text-slate-400 hover:underline"
+                  className="text-[11px] text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 underline"
                 >
                   Continue to Portal (Logged in as {userProfile?.displayName})
                 </button>

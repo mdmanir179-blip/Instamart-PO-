@@ -79,15 +79,15 @@ export const Header: React.FC<HeaderProps> = ({
           
           {/* Logo & Brand matching user's "Instamart Ops Portal" */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-orange-600 flex items-center justify-center text-white shadow-xs">
-              <Truck className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-blue-600 flex items-center justify-center text-white shadow-xs">
+              <Truck className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight text-slate-800 dark:text-white">
-                  Instamart <span className="text-orange-600 dark:text-orange-400">Ops Portal</span>
+                <span className="font-extrabold text-lg tracking-tight text-slate-800 dark:text-slate-100">
+                  Instamart <span className="text-blue-600 dark:text-blue-400">Ops Portal</span>
                 </span>
-                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-orange-50 dark:bg-orange-950/60 text-orange-700 dark:text-orange-400 rounded-md border border-orange-200/80 dark:border-orange-800/80 hidden sm:inline-block">
+                <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md border border-slate-200 dark:border-slate-700 hidden sm:inline-block">
                   Desktop Fullscreen
                 </span>
               </div>
@@ -101,10 +101,10 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Live Clock / Date Widget */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-mono font-bold text-slate-800 dark:text-zinc-200">
-              <Clock className="w-3.5 h-3.5 text-orange-500" />
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
+              <Clock className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
               <span>{currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-sans font-medium hidden lg:inline">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-sans font-medium hidden lg:inline">
                 | {currentTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', weekday: 'short' })}
               </span>
             </div>
@@ -207,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
                   type="button"
                   onClick={onOpenAuthModal}
                   title="Switch Employee Role"
-                  className="p-1.5 rounded-xl text-slate-600 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-zinc-800 transition"
+                  className="p-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                 >
                   <UserCheck className="w-4 h-4" />
                 </button>
