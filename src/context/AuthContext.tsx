@@ -134,6 +134,21 @@ const INITIAL_USERS: UserProfile[] = [
     lastLogin: new Date().toISOString(),
   },
   {
+    uid: 'emp-bo-103',
+    email: 'nishat.fatma@instamart.in',
+    displayName: 'Nishat Fatma',
+    employeeId: 'EMP-BO-103',
+    role: 'Backoffice',
+    department: 'Backoffice Team',
+    phone: '+91 98310 54321',
+    isActive: true,
+    isApproved: true,
+    approvalStatus: 'approved',
+    permissions: DEFAULT_ROLE_PERMISSIONS.Backoffice,
+    createdAt: '2026-10-04T00:00:00.000Z',
+    lastLogin: new Date().toISOString(),
+  },
+  {
     uid: 'emp-wh-504',
     email: 'sanjay.wh@instamart.in',
     displayName: 'Sanjay Das (Warehouse Manager)',
@@ -153,7 +168,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [allUsers, setAllUsers] = useState<UserProfile[]>(() => {
     try {
       const saved = localStorage.getItem('instamart_users');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge saved with INITIAL_USERS to make sure Nishat Fatma and standard staff are always present!
+          const map = new Map<string, UserProfile>();
+          INITIAL_USERS.forEach((u) => map.set(u.uid, u));
+          parsed.forEach((u: UserProfile) => {
+            if (u && (u.uid || u.email)) {
+              const matchedInitial = Array.from(map.values()).find(
+                (m) => (u.email && m.email?.toLowerCase() === u.email?.toLowerCase()) ||
+                       (u.displayName && m.displayName?.toLowerCase() === u.displayName?.toLowerCase()) ||
+                       (u.employeeId && m.employeeId?.toUpperCase() === u.employeeId?.toUpperCase())
+              );
+              if (matchedInitial) {
+                map.set(matchedInitial.uid, { ...matchedInitial, ...u });
+              } else {
+                map.set(u.uid || `user-${Date.now()}-${Math.random()}`, u);
+              }
+            }
+          });
+          return Array.from(map.values());
+        }
+      }
     } catch (e) {
       console.warn(e);
     }
@@ -198,18 +235,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [userProfile]);
 
-  // Optional: Listen to Firebase users if Firestore is accessible
+  // Sync default staff (including Nishat Fatma) to Firestore on boot
+  useEffect(() => {
+    INITIAL_USERS.forEach(async (u) => {
+      try {
+        await setDoc(doc(db, 'users', u.uid), u, { merge: true });
+      } catch (e) {
+        // offline mode
+      }
+    });
+  }, []);
+
+  // Listen to Firebase users if Firestore is accessible with robust data normalization
   useEffect(() => {
     try {
       const unsub = onSnapshot(collection(db, 'users'), (snapshot) => {
         if (!snapshot.empty) {
           const remoteUsers: UserProfile[] = [];
-          snapshot.forEach((d) => remoteUsers.push(d.data() as UserProfile));
-          // Merge remote users with local users
+          snapshot.forEach((d) => {
+            const data = (d.data() || {}) as Partial<UserProfile> & Record<string, any>;
+            const uId = data.uid || d.id;
+            const uName = data.displayName || data.name || data.employeeName || (data.email ? data.email.split('@')[0] : 'Employee');
+            const uRole = (data.role as UserRole) || 'Backoffice';
+            const normUser: UserProfile = {
+              uid: uId,
+              email: data.email || '',
+              displayName: uName,
+              employeeId: data.employeeId || data.empId || `EMP-${d.id.slice(-4)}`,
+              role: uRole,
+              department: data.department || (uRole === 'admin' ? 'Admin Team' : uRole === 'Warehouse' ? 'Warehouse Team' : 'Backoffice Team'),
+              phone: data.phone || data.mobile || '',
+              isActive: data.isActive !== undefined ? data.isActive : true,
+              isApproved: data.isApproved !== undefined ? data.isApproved : true,
+              approvalStatus: data.approvalStatus || (data.isApproved ? 'approved' : 'pending'),
+              permissions: data.permissions || DEFAULT_ROLE_PERMISSIONS[uRole] || DEFAULT_ROLE_PERMISSIONS.Backoffice,
+              createdAt: data.createdAt || new Date().toISOString(),
+              lastLogin: data.lastLogin || new Date().toISOString(),
+            };
+            remoteUsers.push(normUser);
+          });
+
+          // Merge remote users with local users, guaranteeing INITIAL_USERS (like Nishat Fatma) are preserved
           setAllUsers((prev) => {
             const map = new Map<string, UserProfile>();
-            prev.forEach((u) => map.set(u.uid, u));
-            remoteUsers.forEach((u) => map.set(u.uid, u));
+            INITIAL_USERS.forEach((u) => map.set(u.uid, u));
+            prev.forEach((u) => { if (u?.uid) map.set(u.uid, u); });
+            remoteUsers.forEach((u) => { if (u?.uid) map.set(u.uid, u); });
             return Array.from(map.values());
           });
         }
@@ -267,22 +338,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string) => {
     setLoading(true);
     try {
-      const cleanEmail = String(email || '').trim().toLowerCase();
+      const cleanInput = String(email || '').trim().toLowerCase();
       const matched = allUsers.find(
-        (u) => u?.email && String(u.email).trim().toLowerCase() === cleanEmail
+        (u) =>
+          u &&
+          ((u.email && String(u.email).trim().toLowerCase() === cleanInput) ||
+           (u.displayName && String(u.displayName).trim().toLowerCase() === cleanInput) ||
+           (u.employeeId && String(u.employeeId).trim().toLowerCase() === cleanInput) ||
+           (cleanInput.length >= 4 && u.displayName && String(u.displayName).toLowerCase().includes(cleanInput)))
       );
       if (matched) {
         setUserProfile(matched);
       } else {
         // Auto-provision employee profile immediately without auth/operation-not-allowed error!
-        const isSuper = cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
+        const isSuper = cleanInput === SUPER_ADMIN_EMAIL.toLowerCase();
         const newProf: UserProfile = {
           uid: `user-${Date.now()}`,
-          email: email.trim(),
-          displayName: email.split('@')[0].toUpperCase(),
+          email: email.includes('@') ? email.trim() : `${cleanInput.replace(/\s+/g, '.')}@instamart.in`,
+          displayName: email.includes('@') ? email.split('@')[0].toUpperCase() : email.trim(),
           employeeId: isSuper ? 'EMP-ADM-001' : `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
           role: isSuper ? 'admin' : 'Backoffice',
+          department: isSuper ? 'Admin Team' : 'Backoffice Team',
           isActive: true,
+          isApproved: isSuper ? true : true,
+          approvalStatus: 'approved',
+          permissions: DEFAULT_ROLE_PERMISSIONS[isSuper ? 'admin' : 'Backoffice'],
           createdAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
         };
