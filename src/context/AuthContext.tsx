@@ -91,13 +91,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
     try {
-      const activeSaved = localStorage.getItem('instamart_active_user');
-      if (activeSaved) return JSON.parse(activeSaved);
+      // Remove any legacy persistent auto-login from localStorage so opening the app requires login or signup
+      localStorage.removeItem('instamart_active_user');
+      const sessionSaved = sessionStorage.getItem('instamart_active_user');
+      if (sessionSaved) return JSON.parse(sessionSaved);
     } catch (e) {
       console.warn(e);
     }
-    // Default logged in as Admin for instant frictionless access!
-    return INITIAL_USERS[0];
+    // Must login or sign up when software is opened
+    return null;
   });
 
   const [loading, setLoading] = useState<boolean>(false);
@@ -111,12 +113,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [allUsers]);
 
-  // Sync active user to localStorage
+  // Sync active user to sessionStorage
   useEffect(() => {
     try {
       if (userProfile) {
-        localStorage.setItem('instamart_active_user', JSON.stringify(userProfile));
+        sessionStorage.setItem('instamart_active_user', JSON.stringify(userProfile));
       } else {
+        sessionStorage.removeItem('instamart_active_user');
         localStorage.removeItem('instamart_active_user');
       }
     } catch (e) {
@@ -291,6 +294,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // ignore
     }
     setUserProfile(null);
+    try {
+      sessionStorage.removeItem('instamart_active_user');
+      localStorage.removeItem('instamart_active_user');
+    } catch (e) {
+      // ignore
+    }
   };
 
   const quickDemoLogin = async (role: UserRole) => {

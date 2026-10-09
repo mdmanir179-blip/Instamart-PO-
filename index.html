@@ -9,6 +9,32 @@
     <meta property="og:description" content="Comprehensive Purchase Order (PO) lifecycle management, In-Transit dispatch tracking, Warehouse Inwarding, GRN verification, and Instamart DN Tracker with multi-role access control." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var _fetch = window.fetch ? window.fetch.bind(window) : undefined;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return _fetch;
+            },
+            set: function(fn) {
+              _fetch = fn;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (err) {}
+
+        // Prevent external extension script errors from breaking the application
+        window.addEventListener('error', function(event) {
+          if (event && event.filename && event.filename.indexOf('chrome-extension://') !== -1) {
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            if (event.preventDefault) event.preventDefault();
+            return true;
+          }
+        }, true);
+      })();
+    </script>
   </head>
   <body class="bg-[#f1f5f9] text-slate-800 antialiased min-h-screen">
     <div id="root"></div>

@@ -206,10 +206,19 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={onOpenAuthModal}
-                  title="Switch Employee Role"
-                  className="p-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  title="Switch Employee Account"
+                  className="p-1.5 rounded-xl text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                 >
                   <UserCheck className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={logout}
+                  title="Log Out"
+                  className="p-1.5 rounded-xl text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
                 </button>
               </div>
             )}

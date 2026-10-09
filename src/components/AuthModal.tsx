@@ -11,7 +11,8 @@ import {
   Printer, 
   Moon, 
   Sun,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 interface AuthModalProps {
@@ -125,8 +126,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Right White Column (Form area matching Screenshot) */}
-          <div className="w-full md:w-[58%] p-6 sm:p-8 bg-white dark:bg-zinc-900 flex flex-col justify-center">
+          <div className="w-full md:w-[58%] p-6 sm:p-8 bg-white dark:bg-zinc-900 flex flex-col justify-center relative">
             
+            {/* Close button only available if already logged in and switching account */}
+            {userProfile && onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+
             {/* Header with Title and Mode Toggle pill */}
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
@@ -321,17 +334,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               </button>
             </form>
 
-            {onClose && (
-              <div className="mt-4 text-center">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="text-[11px] text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200 underline"
-                >
-                  Continue to Portal (Logged in as {userProfile?.displayName})
-                </button>
-              </div>
-            )}
+            <div className="mt-4 text-center">
+              {mode === 'login' ? (
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Don't have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signup'); setError(null); }}
+                    className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Sign Up
+                  </button>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 dark:text-zinc-400">
+                  Already registered?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setError(null); }}
+                    className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer"
+                  >
+                    Log In
+                  </button>
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
