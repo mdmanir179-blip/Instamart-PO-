@@ -368,30 +368,36 @@ function MainApp() {
   const [isMobilePreview, setIsMobilePreview] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  // Data collections with LocalStorage persistence fallback
+  // Data collections with LocalStorage persistence fallback (Starts clean without unwanted default demo data)
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
     try {
       const saved = localStorage.getItem('instamart_pos');
-      if (saved) {
+      if (saved !== null) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 6) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          // Remove legacy demo records if any exist in storage
+          return parsed.filter(p => !p.id || !String(p.id).startsWith('po-demo-'));
         }
       }
     } catch (e) {
       console.warn(e);
     }
-    return INITIAL_DEMO_POS;
+    return [];
   });
 
   const [dnRecords, setDnRecords] = useState<DNRecord[]>(() => {
     try {
       const saved = localStorage.getItem('instamart_dns');
-      if (saved) return JSON.parse(saved);
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(d => !d.id || !String(d.id).startsWith('dn-demo-'));
+        }
+      }
     } catch (e) {
       console.warn(e);
     }
-    return INITIAL_DEMO_DNS;
+    return [];
   });
 
   const [itemsCatalog, setItemsCatalog] = useState<ItemMaster[]>(() => {
@@ -490,7 +496,9 @@ function MainApp() {
         if (!snapshot.empty) {
           const list: PurchaseOrder[] = [];
           snapshot.forEach((d) => {
-            list.push({ id: d.id, ...d.data() } as PurchaseOrder);
+            if (!d.id.startsWith('po-demo-')) {
+              list.push({ id: d.id, ...d.data() } as PurchaseOrder);
+            }
           });
           list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setPurchaseOrders(list);
@@ -512,7 +520,9 @@ function MainApp() {
         if (!snapshot.empty) {
           const list: DNRecord[] = [];
           snapshot.forEach((d) => {
-            list.push({ id: d.id, ...d.data() } as DNRecord);
+            if (!d.id.startsWith('dn-demo-')) {
+              list.push({ id: d.id, ...d.data() } as DNRecord);
+            }
           });
           list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setDnRecords(list);
@@ -562,6 +572,54 @@ function MainApp() {
         console.info('Deleted from local offline storage');
       }
     }
+  };
+
+  const handleLoadSamplePos = () => {
+    const today = new Date();
+    const generatedSample: PurchaseOrder[] = Array.from({ length: 6 }, (_, i) => {
+      const dayDate = new Date(today);
+      dayDate.setDate(dayDate.getDate() - (5 - i));
+      const y = dayDate.getFullYear();
+      const m = String(dayDate.getMonth() + 1).padStart(2, '0');
+      const d = String(dayDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      const isPast = i < 4;
+      return {
+        id: `po-sample-${Date.now()}-${i}`,
+        poNumber: `PO-INST-2026-${8800 + i * 15}`,
+        orderDate: dateStr,
+        warehouseName: DEFAULT_WAREHOUSES[i % DEFAULT_WAREHOUSES.length],
+        items: [
+          { itemId: 'INST-SKU-1001', itemName: 'Amul Taaza Homogenised Toned Milk 1L', qty: 100 + i * 20, boxCount: 10 + i },
+          { itemId: 'INST-SKU-1002', itemName: 'Aashirvaad Superior MP Shudh Chakki Atta 5kg', qty: 50 + i * 10, boxCount: 5 + i },
+        ],
+        totalQty: 150 + i * 30,
+        invoiceNo: `INV-WB-${4400 + i}`,
+        shipDate: dateStr,
+        appointmentId: `APT-KOL-${8900 + i}`,
+        appointmentDate: dateStr,
+        expiryDate: dateStr,
+        so: `SO-IN-${7700 + i}`,
+        status: (isPast ? (i % 2 === 0 ? 'GRN Completed' : 'In Transit') : 'New PO') as POStatus,
+        noOfBoxes: 15 + i * 2,
+        boxDimensions: '50 x 40 x 30 cm',
+        logisticsPortal: i % 3 === 0 ? 'Delhivery Logistics' : i % 3 === 1 ? 'Instamart Dedicated Fleet' : 'BlueDart Express',
+        pickupTrackingId: `TRK-${8800 + i}`,
+        puc: `PUC-${900 + i}`,
+        asn: `ASN-${i + 1}`,
+        clearBagNo: `CBG-${400 + i}`,
+        comment: `Operational shipment for ${dateStr}`,
+        pickupStatus: (isPast ? 'YES' : 'NO') as 'YES' | 'NO',
+        hasDN: false,
+        createdBy: userProfile?.uid || 'user-admin',
+        createdByName: userProfile?.displayName || 'System Admin',
+        createdByEmpId: userProfile?.employeeId || 'EMP-001',
+        createdAt: dayDate.toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    setPurchaseOrders(generatedSample);
+    localStorage.setItem('instamart_pos', JSON.stringify(generatedSample));
   };
 
   // DN handlers
@@ -1159,7 +1217,31 @@ function MainApp() {
                       {filteredPOs.length === 0 ? (
                         <tr>
                           <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-zinc-500">
-                            No Purchase Orders found. Click "Create New PO" to start.
+                            <div className="max-w-md mx-auto space-y-2.5">
+                              <p className="font-semibold text-slate-700 dark:text-zinc-300">
+                                No Purchase Orders in database
+                              </p>
+                              <p className="text-xs text-slate-400 dark:text-zinc-500">
+                                Default mock records removed. Create real consignments or optionally load sample 7-day data to preview velocity trends.
+                              </p>
+                              <div className="flex items-center justify-center gap-2 pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setEditingPo(null); setIsPoModalOpen(true); }}
+                                  className="px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition cursor-pointer"
+                                >
+                                  + Create New PO
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleLoadSamplePos}
+                                  className="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition cursor-pointer"
+                                  title="Load dynamic sample consignments with last 7 days dates"
+                                >
+                                  Load Sample 7-Day POs
+                                </button>
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       ) : (

@@ -68,18 +68,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const todayStr = useMemo(() => formatLocalDate(currentTime), [currentTime]);
 
-  // Normalize any date string (ISO, YYYY-MM-DD, DD/MM/YYYY, etc.) to YYYY-MM-DD
+  // Normalize any date string (ISO, YYYY-MM-DD, DD/MM/YYYY, etc.) to local YYYY-MM-DD
   const normalizeDate = (dateVal?: string): string | null => {
     if (!dateVal) return null;
-    const trimmed = dateVal.trim();
+    const trimmed = String(dateVal).trim();
+    if (!trimmed) return null;
+
+    // Direct YYYY-MM-DD match
     const isoMatch = trimmed.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
     if (isoMatch) {
-      return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+      const y = isoMatch[1];
+      const m = isoMatch[2].padStart(2, '0');
+      const d = isoMatch[3].padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
+
+    // DD-MM-YYYY or DD/MM/YYYY match
     const dmyMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
     if (dmyMatch) {
-      return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+      const d = dmyMatch[1].padStart(2, '0');
+      const m = dmyMatch[2].padStart(2, '0');
+      const y = dmyMatch[3];
+      return `${y}-${m}-${d}`;
     }
+
     try {
       const parsed = new Date(trimmed);
       if (!isNaN(parsed.getTime())) {
@@ -154,8 +166,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // 1. DYNAMIC 7-DAY WEEKLY TREND DATA MODEL
   // ==========================================
   const weeklyTrendData = useMemo(() => {
-    // Generate dates for the 7 calendar days ending today
-    const rawDays = Array.from({ length: 7 }, (_, i) => {
+    // Generate dates for the 7 calendar days ending today (last 7 days)
+    return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(currentTime);
       d.setDate(d.getDate() - (6 - i));
       const dateKey = formatLocalDate(d);
@@ -163,26 +175,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const dateNum = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
       // Count POs created / ordered on this day
-      let newOrders = purchaseOrders.filter(po => {
+      const dayInflowPOs = purchaseOrders.filter(po => {
         const orderD = normalizeDate(po.orderDate) || normalizeDate(po.createdAt);
         return orderD === dateKey;
-      }).length;
+      });
+      const newOrders = dayInflowPOs.length;
 
       // Count POs dispatched / in-transit on this day
-      let dispatched = purchaseOrders.filter(po => {
-        const shipD = normalizeDate(po.shipDate);
-        const updateD = normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
-        const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.pickupStatus === 'YES';
-        return shipD === dateKey || (isDispatched && updateD === dateKey);
-      }).length;
+      const dayDispatchedPOs = purchaseOrders.filter(po => {
+        const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.status === 'Inwarded' || po.pickupStatus === 'YES';
+        if (!isDispatched) return false;
+        const shipD = normalizeDate(po.shipDate) || normalizeDate(po.appointmentDate) || normalizeDate(po.grnDate) || normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
+        return shipD === dateKey;
+      });
+      const dispatched = dayDispatchedPOs.length;
 
       // Total units cataloged on this day
-      const units = purchaseOrders
-        .filter(po => {
-          const orderD = normalizeDate(po.orderDate) || normalizeDate(po.createdAt);
-          return orderD === dateKey;
-        })
-        .reduce((acc, p) => acc + (p.totalQty || 0), 0);
+      const units = dayInflowPOs.reduce((acc, p) => acc + (Number(p.totalQty) || 0), 0);
 
       return {
         dateKey,
@@ -194,50 +203,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         isToday: i === 6,
       };
     });
-
-    // Operational baseline check:
-    // If actual PO records are low in count (e.g. only 1-3 days have entries),
-    // distribute realistic baseline throughput based on system totals so the trend curve
-    // always accurately showcases velocity dynamics rather than a flatline of zeros.
-    const totalActualNew = rawDays.reduce((acc, d) => acc + d.newOrders, 0);
-    const totalActualDispatched = rawDays.reduce((acc, d) => acc + d.dispatched, 0);
-
-    // Baseline throughput weights for days 0..6
-    const intakeWeights = [1, 2, 3, 2, 4, 3, Math.max(2, totalActualNew)];
-    const dispatchWeights = [1, 2, 2, 3, 3, 4, Math.max(2, totalActualDispatched)];
-
-    return rawDays.map((day, idx) => {
-      // Use actual if present, otherwise blend with active velocity baseline
-      const effectiveNew = day.newOrders > 0 
-        ? day.newOrders 
-        : (totalActualNew > 0 ? day.newOrders : intakeWeights[idx]);
-      
-      const effectiveDispatched = day.dispatched > 0 
-        ? day.dispatched 
-        : (totalActualDispatched > 0 ? day.dispatched : dispatchWeights[idx]);
-
-      return {
-        ...day,
-        newOrders: effectiveNew,
-        dispatched: effectiveDispatched,
-      };
-    });
   }, [purchaseOrders, currentTime]);
 
-  // Trend Scale Maximum
+  // Trend Scale Maximum (strictly proportional to actual data with clean minimum)
   const maxTrendValue = useMemo(() => {
     let max = 0;
     weeklyTrendData.forEach(d => {
       if (d.newOrders > max) max = d.newOrders;
       if (d.dispatched > max) max = d.dispatched;
     });
-    return Math.max(max, 6);
+    return max > 0 ? Math.ceil(max * 1.25) : 5;
   }, [weeklyTrendData]);
 
-  const total7DayNew = weeklyTrendData.reduce((acc, d) => acc + d.newOrders, 0);
-  const total7DayDispatched = weeklyTrendData.reduce((acc, d) => acc + d.dispatched, 0);
+  const total7DayNew = useMemo(() => weeklyTrendData.reduce((acc, d) => acc + d.newOrders, 0), [weeklyTrendData]);
+  const total7DayDispatched = useMemo(() => weeklyTrendData.reduce((acc, d) => acc + d.dispatched, 0), [weeklyTrendData]);
 
-  // SVG Trend Chart Coordinate Generator (500x200 canvas)
+  // SVG Trend Chart Coordinate Generator (560x180 canvas)
   const chartCoordinates = useMemo(() => {
     const width = 560;
     const height = 180;
@@ -247,22 +228,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const availableW = width - paddingX * 2;
     const availableH = height - paddingY * 2;
     const stepX = availableW / (weeklyTrendData.length - 1);
+    const bottomY = height - paddingY;
 
     const pointsInflow = weeklyTrendData.map((d, i) => {
       const x = paddingX + i * stepX;
-      const y = height - paddingY - (d.newOrders / maxTrendValue) * availableH;
+      const y = bottomY - (d.newOrders / maxTrendValue) * availableH;
       return { x, y, val: d.newOrders, day: d };
     });
 
     const pointsDispatch = weeklyTrendData.map((d, i) => {
       const x = paddingX + i * stepX;
-      const y = height - paddingY - (d.dispatched / maxTrendValue) * availableH;
+      const y = bottomY - (d.dispatched / maxTrendValue) * availableH;
       return { x, y, val: d.dispatched, day: d };
     });
 
     // Helper to generate cubic Bézier smooth curve path
     const buildSmoothPath = (pts: { x: number; y: number }[]): string => {
       if (pts.length === 0) return '';
+      if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
       let path = `M ${pts[0].x} ${pts[0].y}`;
       for (let i = 0; i < pts.length - 1; i++) {
         const curr = pts[i];
@@ -277,7 +260,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const pathDispatch = buildSmoothPath(pointsDispatch);
 
     // Area paths closing to bottom baseline
-    const bottomY = height - paddingY;
     const areaInflow = `${pathInflow} L ${pointsInflow[pointsInflow.length - 1].x} ${bottomY} L ${pointsInflow[0].x} ${bottomY} Z`;
     const areaDispatch = `${pathDispatch} L ${pointsDispatch[pointsDispatch.length - 1].x} ${bottomY} L ${pointsDispatch[0].x} ${bottomY} Z`;
 
@@ -306,12 +288,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     if (!selectedTrendDay) return [];
     return purchaseOrders.filter((po) => {
       const orderD = normalizeDate(po.orderDate) || normalizeDate(po.createdAt);
-      const shipD = normalizeDate(po.shipDate);
-      const updateD = normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
-      const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.pickupStatus === 'YES';
+      const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.status === 'Inwarded' || po.pickupStatus === 'YES';
+      const shipD = normalizeDate(po.shipDate) || normalizeDate(po.appointmentDate) || normalizeDate(po.grnDate) || normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
       return (
         orderD === selectedTrendDay.dateKey ||
-        (isDispatched && (shipD === selectedTrendDay.dateKey || updateD === selectedTrendDay.dateKey))
+        (isDispatched && shipD === selectedTrendDay.dateKey)
       );
     });
   }, [selectedTrendDay, purchaseOrders]);
@@ -331,13 +312,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       portalMap[portal].boxes += (po.noOfBoxes || 0);
       portalMap[portal].pos.push(po);
     });
-
-    // Ensure at least sample carriers if list is empty
-    if (Object.keys(portalMap).length === 0) {
-      portalMap['Instamart Dedicated Fleet'] = { count: 2, boxes: 36, pos: [] };
-      portalMap['Delhivery Logistics'] = { count: 2, boxes: 25, pos: [] };
-      portalMap['BlueDart Express'] = { count: 1, boxes: 20, pos: [] };
-    }
 
     const colorPalette = [
       { stroke: '#2563eb', bg: 'bg-blue-600', lightBg: 'bg-blue-50 dark:bg-blue-950/40', text: 'text-blue-600 dark:text-blue-400', label: 'Blue' },
@@ -675,9 +649,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </defs>
 
                   {/* Left Y-Axis Scale Markers & Horizontal Guide Lines */}
-                  {[0.1, 0.5, 0.9].map((pct, idx) => {
+                  {[0.0, 0.33, 0.66, 1.0].map((pct, idx) => {
                     const y = chartCoordinates.paddingY + pct * (chartCoordinates.height - chartCoordinates.paddingY * 2);
                     const val = Math.round(maxTrendValue * (1 - pct));
+                    const isBaseline = pct === 1.0;
                     return (
                       <g key={idx}>
                         <text
@@ -696,9 +671,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           x2={chartCoordinates.width - 15}
                           y2={y}
                           stroke="currentColor"
-                          className="text-slate-200 dark:text-slate-800"
-                          strokeDasharray="4 4"
-                          strokeWidth="1"
+                          className={isBaseline ? "text-slate-300 dark:text-slate-700" : "text-slate-200 dark:text-slate-800/80"}
+                          strokeDasharray={isBaseline ? "none" : "4 4"}
+                          strokeWidth={isBaseline ? "1.5" : "1"}
                         />
                       </g>
                     );
@@ -765,32 +740,62 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                         {/* Inflow Point */}
                         {(trendMetric === 'all' || trendMetric === 'inflow') && (
-                          <circle
-                            cx={ptInflow.x}
-                            cy={ptInflow.y}
-                            r={isSelected ? 7 : (isHovered ? 6 : 4)}
-                            fill="#ffffff"
-                            stroke="#2563eb"
-                            strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
-                            className="transition-all"
-                            onMouseEnter={() => setHoveredTrendIdx(idx)}
-                            onMouseLeave={() => setHoveredTrendIdx(null)}
-                          />
+                          <g>
+                            <circle
+                              cx={ptInflow.x}
+                              cy={ptInflow.y}
+                              r={isSelected ? 7 : (isHovered ? 6 : (ptInflow.val > 0 ? 5 : 3.5))}
+                              fill={ptInflow.val > 0 ? "#2563eb" : "#ffffff"}
+                              stroke="#2563eb"
+                              strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
+                              className="transition-all"
+                              onMouseEnter={() => setHoveredTrendIdx(idx)}
+                              onMouseLeave={() => setHoveredTrendIdx(null)}
+                            />
+                            {ptInflow.val > 0 && (
+                              <text
+                                x={ptInflow.x}
+                                y={ptInflow.y - 8}
+                                textAnchor="middle"
+                                fontSize="9"
+                                fontWeight="bold"
+                                fill="#2563eb"
+                                className="select-none font-mono"
+                              >
+                                {ptInflow.val}
+                              </text>
+                            )}
+                          </g>
                         )}
 
                         {/* Dispatch Point */}
                         {(trendMetric === 'all' || trendMetric === 'dispatch') && (
-                          <circle
-                            cx={ptDispatch.x}
-                            cy={ptDispatch.y}
-                            r={isSelected ? 7 : (isHovered ? 6 : 4)}
-                            fill="#ffffff"
-                            stroke="#059669"
-                            strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
-                            className="transition-all"
-                            onMouseEnter={() => setHoveredTrendIdx(idx)}
-                            onMouseLeave={() => setHoveredTrendIdx(null)}
-                          />
+                          <g>
+                            <circle
+                              cx={ptDispatch.x}
+                              cy={ptDispatch.y}
+                              r={isSelected ? 7 : (isHovered ? 6 : (ptDispatch.val > 0 ? 5 : 3.5))}
+                              fill={ptDispatch.val > 0 ? "#059669" : "#ffffff"}
+                              stroke="#059669"
+                              strokeWidth={isSelected ? 3.5 : (isHovered ? 3 : 2)}
+                              className="transition-all"
+                              onMouseEnter={() => setHoveredTrendIdx(idx)}
+                              onMouseLeave={() => setHoveredTrendIdx(null)}
+                            />
+                            {ptDispatch.val > 0 && (
+                              <text
+                                x={ptDispatch.x}
+                                y={ptDispatch.y - (ptInflow.val > 0 ? 17 : 8)}
+                                textAnchor="middle"
+                                fontSize="9"
+                                fontWeight="bold"
+                                fill="#059669"
+                                className="select-none font-mono"
+                              >
+                                {ptDispatch.val}
+                              </text>
+                            )}
+                          </g>
                         )}
 
                         {/* Invisible click & hover trigger column */}
@@ -854,8 +859,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {weeklyTrendData.map((day, idx) => {
                   const isHovered = hoveredTrendIdx === idx;
                   const isSelected = selectedTrendDayIdx === idx;
-                  const newHeight = Math.max(16, (day.newOrders / maxTrendValue) * 100);
-                  const dispatchHeight = Math.max(16, (day.dispatched / maxTrendValue) * 100);
+                  const newHeight = day.newOrders > 0 ? Math.max(12, (day.newOrders / maxTrendValue) * 100) : 0;
+                  const dispatchHeight = day.dispatched > 0 ? Math.max(12, (day.dispatched / maxTrendValue) * 100) : 0;
 
                   return (
                     <div
@@ -871,12 +876,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {/* Bar 1: New POs */}
                         {(trendMetric === 'all' || trendMetric === 'inflow') && (
                           <div className="w-full max-w-[20px] flex flex-col items-center justify-end h-full">
-                            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 mb-1">
+                            <span className={`text-[10px] font-bold mb-1 ${day.newOrders > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`}>
                               {day.newOrders}
                             </span>
                             <div
                               style={{ height: `${newHeight}%` }}
-                              className="w-full rounded-t-md bg-blue-600 hover:bg-blue-700 transition-all shadow-xs"
+                              className={`w-full rounded-t-md transition-all shadow-xs ${newHeight > 0 ? 'bg-blue-600 hover:bg-blue-700' : 'bg-transparent'}`}
                             />
                           </div>
                         )}
@@ -884,12 +889,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {/* Bar 2: Dispatched */}
                         {(trendMetric === 'all' || trendMetric === 'dispatch') && (
                           <div className="w-full max-w-[20px] flex flex-col items-center justify-end h-full">
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mb-1">
+                            <span className={`text-[10px] font-bold mb-1 ${day.dispatched > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-600'}`}>
                               {day.dispatched}
                             </span>
                             <div
                               style={{ height: `${dispatchHeight}%` }}
-                              className="w-full rounded-t-md bg-emerald-600 hover:bg-emerald-700 transition-all shadow-xs"
+                              className={`w-full rounded-t-md transition-all shadow-xs ${dispatchHeight > 0 ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-transparent'}`}
                             />
                           </div>
                         )}
@@ -997,18 +1002,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
 
           {/* Quick Metrics Footer */}
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-center text-xs">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800 text-center text-xs">
             <div>
-              <span className="text-slate-500 text-[11px]">7-Day PO Inflow</span>
+              <span className="text-slate-500 text-[11px] block">7-Day Inflow</span>
               <div className="font-bold text-slate-800 dark:text-slate-200">{total7DayNew} Orders Logged</div>
             </div>
             <div>
-              <span className="text-slate-500 text-[11px]">Weekly Dispatches</span>
+              <span className="text-slate-500 text-[11px] block">Weekly Dispatches</span>
               <div className="font-bold text-emerald-600 dark:text-emerald-400">{total7DayDispatched} Consignments</div>
             </div>
             <div>
-              <span className="text-slate-500 text-[11px]">Velocity Acceleration</span>
-              <div className="font-bold text-blue-600 dark:text-blue-400">+18.4% Operational Pace</div>
+              <span className="text-slate-500 text-[11px] block">Dispatch Velocity</span>
+              <div className="font-bold text-blue-600 dark:text-blue-400">
+                {total7DayNew > 0
+                  ? `${Math.round((total7DayDispatched / total7DayNew) * 100)}% Rate`
+                  : total7DayDispatched > 0
+                  ? '100% Rate'
+                  : '0% (Ready)'}
+              </div>
             </div>
           </div>
         </div>
@@ -1042,114 +1053,126 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* DYNAMIC SVG DONUT VISUAL */}
-          <div className="relative flex items-center justify-center py-2">
-            <svg viewBox="0 0 100 100" className="w-36 h-36 -rotate-90">
-              {/* Background circle */}
-              <circle
-                cx="50"
-                cy="50"
-                r="38"
-                fill="transparent"
-                stroke="currentColor"
-                className="text-slate-100 dark:text-slate-800"
-                strokeWidth="11"
-              />
+          {logisticsFleetData.totalFleetPOs === 0 ? (
+            <div className="py-10 text-center text-xs text-slate-400 space-y-2">
+              <Truck className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="font-semibold text-slate-600 dark:text-slate-300">No carrier dispatches recorded</p>
+              <p className="text-[11px] text-slate-400 max-w-[220px] mx-auto">
+                Carrier distribution appears once Purchase Orders with logistics partners are logged.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="relative flex items-center justify-center py-2">
+                <svg viewBox="0 0 100 100" className="w-36 h-36 -rotate-90">
+                  {/* Background circle */}
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="38"
+                    fill="transparent"
+                    stroke="currentColor"
+                    className="text-slate-100 dark:text-slate-800"
+                    strokeWidth="11"
+                  />
 
-              {/* Dynamic Portals Arc Segments */}
-              {(() => {
-                let currentOffset = 0;
-                return logisticsFleetData.entries.map((item, idx) => {
-                  const shareFrac = logisticsFleetData.totalFleetPOs > 0 
-                    ? item.count / logisticsFleetData.totalFleetPOs 
-                    : 0;
-                  const strokeLength = shareFrac * CIRCLE_CIRCUMFERENCE;
-                  const dashArray = `${strokeLength} ${CIRCLE_CIRCUMFERENCE - strokeLength}`;
-                  const offset = -currentOffset;
-                  currentOffset += strokeLength;
+                  {/* Dynamic Portals Arc Segments */}
+                  {(() => {
+                    let currentOffset = 0;
+                    return logisticsFleetData.entries.map((item, idx) => {
+                      const shareFrac = logisticsFleetData.totalFleetPOs > 0 
+                        ? item.count / logisticsFleetData.totalFleetPOs 
+                        : 0;
+                      const strokeLength = shareFrac * CIRCLE_CIRCUMFERENCE;
+                      const dashArray = `${strokeLength} ${CIRCLE_CIRCUMFERENCE - strokeLength}`;
+                      const offset = -currentOffset;
+                      currentOffset += strokeLength;
 
+                      const isSelected = selectedFleet === item.name;
+
+                      return (
+                        <circle
+                          key={idx}
+                          cx="50"
+                          cy="50"
+                          r="38"
+                          fill="transparent"
+                          stroke={item.color.stroke}
+                          strokeWidth={isSelected ? 14 : 11}
+                          strokeDasharray={dashArray}
+                          strokeDashoffset={offset}
+                          strokeLinecap="butt"
+                          className="transition-all duration-300 hover:opacity-80 cursor-pointer"
+                          onClick={() => setSelectedFleet(isSelected ? null : item.name)}
+                        />
+                      );
+                    });
+                  })()}
+                </svg>
+
+                {/* Donut Center Display */}
+                <div className="absolute text-center select-none pointer-events-none px-2 max-w-[100px]">
+                  {activeFleetInfo ? (
+                    <>
+                      <span className="text-base font-extrabold text-slate-900 dark:text-white block leading-tight truncate">
+                        {activeFleetInfo.count} POs
+                      </span>
+                      <span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold tracking-wider">
+                        {activeFleetInfo.percentage}% SHARE
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xl font-extrabold text-slate-900 dark:text-white block">
+                        {totalPOs}
+                      </span>
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
+                        Total Fleet
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* DYNAMIC INTERACTIVE CARRIER LIST */}
+              <div className="space-y-2 text-xs pt-1">
+                {logisticsFleetData.entries.map((item, idx) => {
                   const isSelected = selectedFleet === item.name;
 
                   return (
-                    <circle
+                    <div
                       key={idx}
-                      cx="50"
-                      cy="50"
-                      r="38"
-                      fill="transparent"
-                      stroke={item.color.stroke}
-                      strokeWidth={isSelected ? 14 : 11}
-                      strokeDasharray={dashArray}
-                      strokeDashoffset={offset}
-                      strokeLinecap="butt"
-                      className="transition-all duration-300 hover:opacity-80 cursor-pointer"
                       onClick={() => setSelectedFleet(isSelected ? null : item.name)}
-                    />
+                      className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition border ${
+                        isSelected
+                          ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border-transparent'
+                      }`}
+                      title="Click to view consignments handled by this fleet"
+                    >
+                      <span className="flex items-center gap-2 truncate pr-2">
+                        <span
+                          className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: item.color.stroke }}
+                        />
+                        <span className="truncate text-slate-700 dark:text-slate-300 font-semibold">
+                          {item.name}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                          {item.count} PO{item.count !== 1 ? 's' : ''}
+                        </span>
+                        <span className="font-bold text-slate-900 dark:text-slate-200 min-w-[32px] text-right">
+                          {item.percentage}%
+                        </span>
+                      </div>
+                    </div>
                   );
-                });
-              })()}
-            </svg>
-
-            {/* Donut Center Display */}
-            <div className="absolute text-center select-none pointer-events-none px-2 max-w-[100px]">
-              {activeFleetInfo ? (
-                <>
-                  <span className="text-base font-extrabold text-slate-900 dark:text-white block leading-tight truncate">
-                    {activeFleetInfo.count} POs
-                  </span>
-                  <span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold tracking-wider">
-                    {activeFleetInfo.percentage}% SHARE
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span className="text-xl font-extrabold text-slate-900 dark:text-white block">
-                    {totalPOs}
-                  </span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider">
-                    Total Fleet
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* DYNAMIC INTERACTIVE CARRIER LIST */}
-          <div className="space-y-2 text-xs pt-1">
-            {logisticsFleetData.entries.map((item, idx) => {
-              const isSelected = selectedFleet === item.name;
-
-              return (
-                <div
-                  key={idx}
-                  onClick={() => setSelectedFleet(isSelected ? null : item.name)}
-                  className={`flex items-center justify-between p-2 rounded-xl cursor-pointer transition border ${
-                    isSelected
-                      ? 'bg-blue-50/70 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 shadow-xs'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/60 border-transparent'
-                  }`}
-                  title="Click to view consignments handled by this fleet"
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color.stroke }}
-                    />
-                    <span className="truncate text-slate-700 dark:text-slate-300 font-semibold">
-                      {item.name}
-                    </span>
-                  </span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">
-                      {item.count} PO{item.count !== 1 ? 's' : ''}
-                    </span>
-                    <span className="font-bold text-slate-900 dark:text-slate-200 min-w-[32px] text-right">
-                      {item.percentage}%
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                })}
+              </div>
+            </>
+          )}
 
           {/* INSPECTION DRAWER: If a fleet carrier is selected, show its quick details */}
           {activeFleetInfo && (
