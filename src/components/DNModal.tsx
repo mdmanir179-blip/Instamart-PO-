@@ -107,14 +107,14 @@ export const DNModal: React.FC<DNModalProps> = ({
   // When Parent PO is picked, auto-populate PO Date and SO
   const handleParentPoChange = (poNum: string) => {
     setParentPoNumber(poNum);
-    const matched = poList.find((p) => p.poNumber.toLowerCase() === poNum.toLowerCase());
+    const matched = poList.find((p) => p && String(p.poNumber || '').toLowerCase() === String(poNum || '').toLowerCase());
     if (matched) {
       setParentPoDate(matched.orderDate || '');
       setParentSo(matched.so || '');
       setFacilityName(matched.warehouseName || facilityName);
       if (matched.items && matched.items.length > 0) {
-        setSkuId(matched.items[0].itemId);
-        setItemName(matched.items[0].itemName);
+        setSkuId(matched.items[0]?.itemId || '');
+        setItemName(matched.items[0]?.itemName || '');
       }
     }
   };
@@ -122,9 +122,9 @@ export const DNModal: React.FC<DNModalProps> = ({
   // When SKU is changed, auto populate item name
   const handleSkuChange = (newSku: string) => {
     setSkuId(newSku);
-    const matched = itemsCatalog.find((c) => c.itemId.toLowerCase() === newSku.toLowerCase());
+    const matched = itemsCatalog.find((c) => c && String(c.itemId || '').toLowerCase() === String(newSku || '').toLowerCase());
     if (matched) {
-      setItemName(matched.itemName);
+      setItemName(matched.itemName || '');
     }
   };
 

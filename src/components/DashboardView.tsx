@@ -105,29 +105,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Expiry date checking: Look for any PO or items where expiryDate matches today
   const expiringTodayList = useMemo(() => {
-    return purchaseOrders.flatMap((po) => {
+    return (purchaseOrders || []).flatMap((po) => {
+      if (!po) return [];
       const hits: { poNumber: string; warehouse: string; item: string; expiry: string; qty: number }[] = [];
       
       const poExp = normalizeDate(po.expiryDate) || normalizeDate(po.appointmentDate);
       if (poExp === todayStr) {
         hits.push({
-          poNumber: po.poNumber,
-          warehouse: po.warehouseName,
+          poNumber: po.poNumber || 'N/A',
+          warehouse: po.warehouseName || 'Warehouse',
           item: po.items?.[0]?.itemName || 'Consignment Stock',
           expiry: poExp,
-          qty: po.totalQty,
+          qty: po.totalQty || 0,
         });
       }
 
       po.items?.forEach((it) => {
+        if (!it) return;
         const itExp = normalizeDate(it.expiryDate);
         if (itExp === todayStr) {
           hits.push({
-            poNumber: po.poNumber,
-            warehouse: po.warehouseName,
-            item: it.itemName,
+            poNumber: po.poNumber || 'N/A',
+            warehouse: po.warehouseName || 'Warehouse',
+            item: it.itemName || 'Item',
             expiry: itExp,
-            qty: it.qty,
+            qty: it.qty || 0,
           });
         }
       });
@@ -137,12 +139,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   }, [purchaseOrders, todayStr]);
 
   // Key KPI stats
-  const totalPOs = purchaseOrders.length;
-  const inTransitCount = purchaseOrders.filter(p => p.pickupStatus === 'YES' || p.status === 'In Transit').length;
-  const grnCompletedCount = purchaseOrders.filter(p => p.status === 'GRN Completed').length;
-  const openDnCount = dnRecords.filter(d => d.status !== 'Closed').length;
-  const totalBoxes = purchaseOrders.reduce((sum, p) => sum + (p.noOfBoxes || 0), 0);
-  const totalUnits = purchaseOrders.reduce((sum, p) => sum + (p.totalQty || 0), 0);
+  const totalPOs = (purchaseOrders || []).length;
+  const inTransitCount = (purchaseOrders || []).filter(p => p && (p.pickupStatus === 'YES' || p.status === 'In Transit')).length;
+  const grnCompletedCount = (purchaseOrders || []).filter(p => p && p.status === 'GRN Completed').length;
+  const openDnCount = (dnRecords || []).filter(d => d && d.status !== 'Closed').length;
+  const totalBoxes = (purchaseOrders || []).reduce((sum, p) => sum + (p?.noOfBoxes || 0), 0);
+  const totalUnits = (purchaseOrders || []).reduce((sum, p) => sum + (p?.totalQty || 0), 0);
 
   // Fulfillment rate
   const fulfillmentRate = totalPOs > 0 ? Math.round((grnCompletedCount / totalPOs) * 100) : 100;
@@ -175,14 +177,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const dateNum = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
       // Count POs created / ordered on this day
-      const dayInflowPOs = purchaseOrders.filter(po => {
+      const dayInflowPOs = (purchaseOrders || []).filter(po => {
+        if (!po) return false;
         const orderD = normalizeDate(po.orderDate) || normalizeDate(po.createdAt);
         return orderD === dateKey;
       });
       const newOrders = dayInflowPOs.length;
 
       // Count POs dispatched / in-transit on this day
-      const dayDispatchedPOs = purchaseOrders.filter(po => {
+      const dayDispatchedPOs = (purchaseOrders || []).filter(po => {
+        if (!po) return false;
         const isDispatched = po.status === 'In Transit' || po.status === 'GRN Completed' || po.status === 'Inwarded' || po.pickupStatus === 'YES';
         if (!isDispatched) return false;
         const shipD = normalizeDate(po.shipDate) || normalizeDate(po.appointmentDate) || normalizeDate(po.grnDate) || normalizeDate(po.updatedAt) || normalizeDate(po.createdAt);
@@ -191,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       const dispatched = dayDispatchedPOs.length;
 
       // Total units cataloged on this day
-      const units = dayInflowPOs.reduce((acc, p) => acc + (Number(p.totalQty) || 0), 0);
+      const units = dayInflowPOs.reduce((acc, p) => acc + (Number(p?.totalQty) || 0), 0);
 
       return {
         dateKey,

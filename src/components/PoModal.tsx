@@ -142,10 +142,10 @@ export const PoModal: React.FC<PoModalProps> = ({
 
     if (field === 'itemId') {
       const matched = itemsCatalog.find(
-        (c) => c.itemId.toLowerCase().trim() === String(value).toLowerCase().trim()
+        (c) => c && String(c.itemId || '').toLowerCase().trim() === String(value || '').toLowerCase().trim()
       );
       if (matched) {
-        updated[index].itemName = matched.itemName;
+        updated[index].itemName = matched.itemName || '';
       }
     }
 

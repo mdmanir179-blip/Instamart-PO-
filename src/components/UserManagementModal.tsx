@@ -31,10 +31,11 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const filtered = allUsers.filter(
     (u) =>
-      u.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.employeeId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchTerm.toLowerCase())
+      u &&
+      (String(u.displayName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       String(u.employeeId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       String(u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       String(u.role || '').toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleToggle = async (uid: string, currentStatus: boolean) => {

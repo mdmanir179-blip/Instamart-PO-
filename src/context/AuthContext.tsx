@@ -196,14 +196,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string) => {
     setLoading(true);
     try {
+      const cleanEmail = String(email || '').trim().toLowerCase();
       const matched = allUsers.find(
-        (u) => u.email.toLowerCase().trim() === email.toLowerCase().trim()
+        (u) => u?.email && String(u.email).trim().toLowerCase() === cleanEmail
       );
       if (matched) {
         setUserProfile(matched);
       } else {
         // Auto-provision employee profile immediately without auth/operation-not-allowed error!
-        const isSuper = email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+        const isSuper = cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
         const newProf: UserProfile = {
           uid: `user-${Date.now()}`,
           email: email.trim(),
@@ -231,7 +232,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   ) => {
     setLoading(true);
     try {
-      const isSuper = email.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase();
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      const isSuper = cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
       const profile: UserProfile = {
         uid: `user-${Date.now()}`,
         email: email.trim(),
@@ -244,7 +246,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       setAllUsers((prev) => {
-        const filtered = prev.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+        const filtered = prev.filter(u => u?.email && String(u.email).trim().toLowerCase() !== cleanEmail);
         return [profile, ...filtered];
       });
       setUserProfile(profile);
@@ -267,9 +269,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserProfile((prev) => prev ? { ...prev, isActive: newActiveState } : null);
     }
     try {
-      await updateDoc(doc(db, 'users', uid), { isActive: newActiveState });
+      await setDoc(doc(db, 'users', uid), { isActive: newActiveState }, { merge: true });
     } catch (e) {
-      console.info('Status updated locally');
+      console.warn('Status update failed in cloud:', e);
     }
   };
 
@@ -281,9 +283,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUserProfile((prev) => prev ? { ...prev, role: newRole } : null);
     }
     try {
-      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      await setDoc(doc(db, 'users', uid), { role: newRole }, { merge: true });
     } catch (e) {
-      console.info('Role updated locally');
+      console.warn('Role update failed in cloud:', e);
     }
   };
 

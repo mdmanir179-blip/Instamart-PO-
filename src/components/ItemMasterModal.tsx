@@ -45,9 +45,10 @@ export const ItemMasterModal: React.FC<ItemMasterModalProps> = ({
 
   const filteredItems = items.filter(
     (it) =>
-      it.itemId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      it.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (it.category && it.category.toLowerCase().includes(searchTerm.toLowerCase()))
+      it &&
+      (String(it.itemId || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       String(it.itemName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+       (it.category && String(it.category).toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   const startNewItem = () => {

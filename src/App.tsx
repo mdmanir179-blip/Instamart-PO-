@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   collection, 
   onSnapshot, 
@@ -25,6 +25,7 @@ import { ExportBar } from './components/ExportBar';
 import { OfflineSheetView } from './components/OfflineSheetView';
 import { DashboardView } from './components/DashboardView';
 import { ExpiryNotificationModal } from './components/ExpiryNotificationModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { 
   Package, 
   Truck, 
@@ -467,20 +468,20 @@ function MainApp() {
     return count + hit;
   }, 0);
 
-  // 1. Subscribe to Items Catalog
+  // 1. Subscribe to Items Catalog in real time
   useEffect(() => {
     try {
       const q = collection(db, 'items');
       const unsub = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const list: ItemMaster[] = [];
-          snapshot.forEach((d) => {
-            list.push({ id: d.id, ...d.data() } as ItemMaster);
-          });
+        const list: ItemMaster[] = [];
+        snapshot.forEach((d) => {
+          list.push({ id: d.id, ...d.data() } as ItemMaster);
+        });
+        if (list.length > 0) {
           setItemsCatalog(list);
         }
       }, (error) => {
-        console.info('Offline catalog mode active');
+        console.warn('Realtime catalog sync:', error.message);
       });
       return () => unsub();
     } catch (e) {
@@ -488,23 +489,21 @@ function MainApp() {
     }
   }, []);
 
-  // 2. Subscribe to Purchase Orders
+  // 2. Subscribe to Purchase Orders in real time (Immediate sync for Backoffice, Admin, Warehouse, Logistics, Print)
   useEffect(() => {
     try {
       const q = collection(db, 'purchase_orders');
       const unsub = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const list: PurchaseOrder[] = [];
-          snapshot.forEach((d) => {
-            if (!d.id.startsWith('po-demo-')) {
-              list.push({ id: d.id, ...d.data() } as PurchaseOrder);
-            }
-          });
-          list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          setPurchaseOrders(list);
-        }
+        const list: PurchaseOrder[] = [];
+        snapshot.forEach((d) => {
+          if (!d.id.startsWith('po-demo-')) {
+            list.push({ id: d.id, ...d.data() } as PurchaseOrder);
+          }
+        });
+        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setPurchaseOrders(list);
       }, (error) => {
-        console.info('Offline PO mode active');
+        console.warn('Realtime PO sync:', error.message);
       });
       return () => unsub();
     } catch (e) {
@@ -512,23 +511,21 @@ function MainApp() {
     }
   }, []);
 
-  // 3. Subscribe to DN Records
+  // 3. Subscribe to DN Records in real time
   useEffect(() => {
     try {
       const q = collection(db, 'dn_records');
       const unsub = onSnapshot(q, (snapshot) => {
-        if (!snapshot.empty) {
-          const list: DNRecord[] = [];
-          snapshot.forEach((d) => {
-            if (!d.id.startsWith('dn-demo-')) {
-              list.push({ id: d.id, ...d.data() } as DNRecord);
-            }
-          });
-          list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          setDnRecords(list);
-        }
+        const list: DNRecord[] = [];
+        snapshot.forEach((d) => {
+          if (!d.id.startsWith('dn-demo-')) {
+            list.push({ id: d.id, ...d.data() } as DNRecord);
+          }
+        });
+        list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        setDnRecords(list);
       }, (error) => {
-        console.info('Offline DN mode active');
+        console.warn('Realtime DN sync:', error.message);
       });
       return () => unsub();
     } catch (e) {
@@ -536,25 +533,41 @@ function MainApp() {
     }
   }, []);
 
-  // PO handlers with dual offline/online update
+  // PO handlers with immediate real-time cloud sync
   const handleSavePo = async (poData: Partial<PurchaseOrder>) => {
+    const nowIso = new Date().toISOString();
     if (editingPo?.id) {
-      const updated = { ...editingPo, ...poData, id: editingPo.id } as PurchaseOrder;
+      const updated: PurchaseOrder = { 
+        ...editingPo, 
+        ...poData, 
+        id: editingPo.id,
+        updatedAt: nowIso,
+        updatedBy: userProfile?.uid,
+        updatedByName: userProfile?.displayName,
+        updatedByEmpId: userProfile?.employeeId,
+      };
       setPurchaseOrders(prev => prev.map(p => p.id === editingPo.id ? updated : p));
       try {
-        await updateDoc(doc(db, 'purchase_orders', editingPo.id), poData);
+        await setDoc(doc(db, 'purchase_orders', editingPo.id), updated, { merge: true });
       } catch (e) {
-        console.info('Updated in local offline storage');
+        console.warn('Cloud update failed:', e);
       }
     } else {
       const newId = `po-${Date.now()}`;
-      const newPo = { ...poData, id: newId } as PurchaseOrder;
+      const newPo: PurchaseOrder = { 
+        ...poData, 
+        id: newId,
+        createdAt: poData.createdAt || nowIso,
+        updatedAt: nowIso,
+        createdBy: userProfile?.uid || 'user-emp',
+        createdByName: userProfile?.displayName || 'Instamart Employee',
+        createdByEmpId: userProfile?.employeeId || 'EMP',
+      } as PurchaseOrder;
       setPurchaseOrders(prev => [newPo, ...prev]);
       try {
-        const docRef = await addDoc(collection(db, 'purchase_orders'), poData);
-        setPurchaseOrders(prev => prev.map(p => p.id === newId ? { ...newPo, id: docRef.id } : p));
+        await setDoc(doc(db, 'purchase_orders', newId), newPo);
       } catch (e) {
-        console.info('Saved in local offline storage');
+        console.warn('Cloud create failed:', e);
       }
     }
   };
@@ -569,7 +582,7 @@ function MainApp() {
       try {
         await deleteDoc(doc(db, 'purchase_orders', id));
       } catch (e) {
-        console.info('Deleted from local offline storage');
+        console.warn('Cloud delete failed:', e);
       }
     }
   };
@@ -620,27 +633,43 @@ function MainApp() {
     });
     setPurchaseOrders(generatedSample);
     localStorage.setItem('instamart_pos', JSON.stringify(generatedSample));
+    // Immediately broadcast to Firestore so all connected team members get the update in real time
+    generatedSample.forEach(po => {
+      setDoc(doc(db, 'purchase_orders', po.id), po).catch(e => console.warn(e));
+    });
   };
 
-  // DN handlers
+  // DN handlers with immediate real-time cloud sync
   const handleSaveDn = async (dnData: Partial<DNRecord>) => {
+    const nowIso = new Date().toISOString();
     if (editingDn?.id) {
-      const updated = { ...editingDn, ...dnData, id: editingDn.id } as DNRecord;
+      const updated = { 
+        ...editingDn, 
+        ...dnData, 
+        id: editingDn.id,
+        updatedAt: nowIso,
+      } as DNRecord;
       setDnRecords(prev => prev.map(d => d.id === editingDn.id ? updated : d));
       try {
-        await updateDoc(doc(db, 'dn_records', editingDn.id), dnData);
+        await setDoc(doc(db, 'dn_records', editingDn.id), updated, { merge: true });
       } catch (e) {
-        console.info('Updated in local offline storage');
+        console.warn('Cloud update failed:', e);
       }
     } else {
       const newId = `dn-${Date.now()}`;
-      const newDn = { ...dnData, id: newId } as DNRecord;
+      const newDn = { 
+        ...dnData, 
+        id: newId,
+        createdAt: dnData.createdAt || nowIso,
+        updatedAt: nowIso,
+        createdByName: userProfile?.displayName || 'Instamart Employee',
+        createdByEmpId: userProfile?.employeeId || 'EMP',
+      } as DNRecord;
       setDnRecords(prev => [newDn, ...prev]);
       try {
-        const docRef = await addDoc(collection(db, 'dn_records'), dnData);
-        setDnRecords(prev => prev.map(d => d.id === newId ? { ...newDn, id: docRef.id } : d));
+        await setDoc(doc(db, 'dn_records', newId), newDn);
       } catch (e) {
-        console.info('Saved in local offline storage');
+        console.warn('Cloud create failed:', e);
       }
     }
   };
@@ -655,29 +684,28 @@ function MainApp() {
       try {
         await deleteDoc(doc(db, 'dn_records', id));
       } catch (e) {
-        console.info('Deleted from local offline storage');
+        console.warn('Cloud delete failed:', e);
       }
     }
   };
 
-  // Catalog item handlers
+  // Catalog item handlers with immediate cloud sync
   const handleSaveCatalogItem = async (itemData: Partial<ItemMaster>) => {
     if (itemData.id) {
       setItemsCatalog(prev => prev.map(it => it.id === itemData.id ? { ...it, ...itemData } as ItemMaster : it));
       try {
-        await updateDoc(doc(db, 'items', itemData.id), itemData);
+        await setDoc(doc(db, 'items', itemData.id), itemData, { merge: true });
       } catch (e) {
-        console.info('Updated item in local offline catalog');
+        console.warn('Cloud item update failed:', e);
       }
     } else {
       const newId = `sku-${Date.now()}`;
       const newItem = { ...itemData, id: newId } as ItemMaster;
       setItemsCatalog(prev => [newItem, ...prev]);
       try {
-        const docRef = await addDoc(collection(db, 'items'), itemData);
-        setItemsCatalog(prev => prev.map(it => it.id === newId ? { ...newItem, id: docRef.id } : it));
+        await setDoc(doc(db, 'items', newId), newItem);
       } catch (e) {
-        console.info('Saved item in local offline catalog');
+        console.warn('Cloud item create failed:', e);
       }
     }
   };
@@ -687,11 +715,11 @@ function MainApp() {
     try {
       await deleteDoc(doc(db, 'items', id));
     } catch (e) {
-      console.info('Deleted from local offline catalog');
+      console.warn('Cloud item delete failed:', e);
     }
   };
 
-  // GRN Inward Confirmation
+  // GRN Inward Confirmation (Warehouse team updates status immediately for Backoffice, Admin, Logistics)
   const handleConfirmGrn = async (
     poId: string, 
     grnData: { grnNumber: string; grnDate: string; hasDN: boolean; comment: string }
@@ -710,19 +738,20 @@ function MainApp() {
 
     setPurchaseOrders(prev => prev.map(p => p.id === poId ? { ...p, ...patch } : p));
     try {
-      await updateDoc(doc(db, 'purchase_orders', poId), patch);
+      await setDoc(doc(db, 'purchase_orders', poId), patch, { merge: true });
     } catch (e) {
-      console.info('GRN updated in local offline storage');
+      console.warn('Cloud GRN update failed:', e);
     }
   };
 
-  // Offline Sheet direct handlers
+  // Offline Sheet direct handlers (Immediate real-time cloud sync)
   const handleUpdatePoFromSheet = async (updatedPo: PurchaseOrder) => {
-    setPurchaseOrders(prev => prev.map(p => p.id === updatedPo.id ? updatedPo : p));
+    const updated = { ...updatedPo, updatedAt: new Date().toISOString() };
+    setPurchaseOrders(prev => prev.map(p => p.id === updated.id ? updated : p));
     try {
-      await updateDoc(doc(db, 'purchase_orders', updatedPo.id), updatedPo);
+      await setDoc(doc(db, 'purchase_orders', updated.id), updated, { merge: true });
     } catch (e) {
-      // safe fallback
+      console.warn('Cloud sheet PO update failed:', e);
     }
   };
 
@@ -731,11 +760,12 @@ function MainApp() {
   };
 
   const handleUpdateDnFromSheet = async (updatedDn: DNRecord) => {
-    setDnRecords(prev => prev.map(d => d.id === updatedDn.id ? updatedDn : d));
+    const updated = { ...updatedDn, updatedAt: new Date().toISOString() };
+    setDnRecords(prev => prev.map(d => d.id === updated.id ? updated : d));
     try {
-      await updateDoc(doc(db, 'dn_records', updatedDn.id), updatedDn);
+      await setDoc(doc(db, 'dn_records', updated.id), updated, { merge: true });
     } catch (e) {
-      // safe fallback
+      console.warn('Cloud sheet DN update failed:', e);
     }
   };
 
@@ -770,40 +800,82 @@ function MainApp() {
     setIsDnModalOpen(true);
   };
 
-  // Filtered lists
-  const filteredPOs = purchaseOrders.filter((po) => {
-    const matchSearch =
-      po.poNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.warehouseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.invoiceNo?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.so?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.pickupTrackingId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      po.items?.some((i) => i.itemId.toLowerCase().includes(searchQuery.toLowerCase()) || i.itemName.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Filtered lists with resilient null-safety
+  const filteredPOs = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (purchaseOrders || []).filter((po) => {
+      if (!po) return false;
 
-    const matchWh = warehouseFilter === 'ALL' || po.warehouseName === warehouseFilter;
-    const matchStatus = statusFilter === 'ALL' || po.status === statusFilter;
+      const matchWh = warehouseFilter === 'ALL' || po.warehouseName === warehouseFilter;
+      const matchStatus = statusFilter === 'ALL' || po.status === statusFilter;
+      if (!matchWh || !matchStatus) return false;
 
-    return matchSearch && matchWh && matchStatus;
-  });
+      if (!q) return true;
 
-  const inTransitPOs = filteredPOs.filter(
-    (po) => po.pickupStatus === 'YES' || po.status === 'In Transit'
-  );
+      const poNum = String(po.poNumber || '').toLowerCase();
+      const whName = String(po.warehouseName || '').toLowerCase();
+      const invNo = String(po.invoiceNo || '').toLowerCase();
+      const soNum = String(po.so || '').toLowerCase();
+      const trackId = String(po.pickupTrackingId || '').toLowerCase();
 
-  const grnPOs = filteredPOs.filter(
-    (po) => po.status === 'In Transit' || po.status === 'Inwarded' || po.status === 'GRN Completed'
-  );
+      if (
+        poNum.includes(q) ||
+        whName.includes(q) ||
+        invNo.includes(q) ||
+        soNum.includes(q) ||
+        trackId.includes(q)
+      ) {
+        return true;
+      }
 
-  const filteredDNs = dnRecords.filter((dn) => {
-    return (
-      dn.dnNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dn.facilityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dn.parentPoNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dn.skuId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dn.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dn.lrNo.toLowerCase().includes(searchQuery.toLowerCase())
+      if (Array.isArray(po.items)) {
+        return po.items.some((i) => {
+          if (!i) return false;
+          const itemId = String(i.itemId || '').toLowerCase();
+          const itemName = String(i.itemName || '').toLowerCase();
+          return itemId.includes(q) || itemName.includes(q);
+        });
+      }
+
+      return false;
+    });
+  }, [purchaseOrders, searchQuery, warehouseFilter, statusFilter]);
+
+  const inTransitPOs = useMemo(() => {
+    return (filteredPOs || []).filter(
+      (po) => po && (po.pickupStatus === 'YES' || po.status === 'In Transit')
     );
-  });
+  }, [filteredPOs]);
+
+  const grnPOs = useMemo(() => {
+    return (filteredPOs || []).filter(
+      (po) => po && (po.status === 'In Transit' || po.status === 'Inwarded' || po.status === 'GRN Completed')
+    );
+  }, [filteredPOs]);
+
+  const filteredDNs = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    return (dnRecords || []).filter((dn) => {
+      if (!dn) return false;
+      if (!q) return true;
+
+      const dnNum = String(dn.dnNumber || '').toLowerCase();
+      const facName = String(dn.facilityName || '').toLowerCase();
+      const parPo = String(dn.parentPoNumber || '').toLowerCase();
+      const sku = String(dn.skuId || '').toLowerCase();
+      const itName = String(dn.itemName || '').toLowerCase();
+      const lr = String(dn.lrNo || '').toLowerCase();
+
+      return (
+        dnNum.includes(q) ||
+        facName.includes(q) ||
+        parPo.includes(q) ||
+        sku.includes(q) ||
+        itName.includes(q) ||
+        lr.includes(q)
+      );
+    });
+  }, [dnRecords, searchQuery]);
 
   // Export prepared data
   const exportPoHeaders = [
@@ -812,41 +884,41 @@ function MainApp() {
     'GRN Number', 'Created By', 'Emp ID'
   ];
 
-  const exportPoRows = filteredPOs.map((po) => [
-    po.poNumber,
-    po.orderDate,
-    po.warehouseName,
-    po.status,
-    po.pickupStatus,
-    po.totalQty,
-    po.noOfBoxes,
-    po.invoiceNo || 'N/A',
-    po.so || 'N/A',
-    po.logisticsPortal || 'N/A',
-    po.pickupTrackingId || 'N/A',
-    po.grnNumber || 'N/A',
-    po.createdByName || 'System',
-    po.createdByEmpId || 'N/A'
+  const exportPoRows = (filteredPOs || []).map((po) => [
+    po?.poNumber || 'N/A',
+    po?.orderDate || 'N/A',
+    po?.warehouseName || 'N/A',
+    po?.status || 'N/A',
+    po?.pickupStatus || 'N/A',
+    po?.totalQty ?? 0,
+    po?.noOfBoxes ?? 0,
+    po?.invoiceNo || 'N/A',
+    po?.so || 'N/A',
+    po?.logisticsPortal || 'N/A',
+    po?.pickupTrackingId || 'N/A',
+    po?.grnNumber || 'N/A',
+    po?.createdByName || 'System',
+    po?.createdByEmpId || 'N/A'
   ]);
 
-  const exportPoJson = filteredPOs.map((po) => ({
-    'PO Number': po.poNumber,
-    'Order Date': po.orderDate,
-    'Warehouse Name': po.warehouseName,
-    'Status': po.status,
-    'Pickup Status': po.pickupStatus,
-    'Total Qty': po.totalQty,
-    'No of Boxes': po.noOfBoxes,
-    'Box Dimensions': po.boxDimensions,
-    'Invoice No': po.invoiceNo,
-    'SO': po.so,
-    'Logistics Portal': po.logisticsPortal,
-    'Tracking ID': po.pickupTrackingId,
-    'ASN': po.asn,
-    'PUC': po.puc,
-    'GRN No': po.grnNumber || 'Pending',
-    'Created By': po.createdByName,
-    'Created By Emp ID': po.createdByEmpId,
+  const exportPoJson = (filteredPOs || []).map((po) => ({
+    'PO Number': po?.poNumber || '',
+    'Order Date': po?.orderDate || '',
+    'Warehouse Name': po?.warehouseName || '',
+    'Status': po?.status || '',
+    'Pickup Status': po?.pickupStatus || '',
+    'Total Qty': po?.totalQty ?? 0,
+    'No of Boxes': po?.noOfBoxes ?? 0,
+    'Box Dimensions': po?.boxDimensions || '',
+    'Invoice No': po?.invoiceNo || '',
+    'SO': po?.so || '',
+    'Logistics Portal': po?.logisticsPortal || '',
+    'Tracking ID': po?.pickupTrackingId || '',
+    'ASN': po?.asn || '',
+    'PUC': po?.puc || '',
+    'GRN No': po?.grnNumber || 'Pending',
+    'Created By': po?.createdByName || '',
+    'Created By Emp ID': po?.createdByEmpId || '',
   }));
 
   const exportDnHeaders = [
@@ -854,38 +926,38 @@ function MainApp() {
     'Item Name', 'DN Qty', 'WH POC', 'Contact', 'LR No', 'Status', 'Updated By'
   ];
 
-  const exportDnRows = filteredDNs.map((dn) => [
-    dn.dnNumber,
-    dn.dnDate,
-    dn.facilityName,
-    dn.parentPoNumber,
-    dn.skuId,
-    dn.itemName,
-    dn.dnQty,
-    dn.whPocName,
-    dn.whPocContact,
-    dn.lrNo,
-    dn.status,
-    dn.updatedByName || dn.createdByName || 'N/A'
+  const exportDnRows = (filteredDNs || []).map((dn) => [
+    dn?.dnNumber || 'N/A',
+    dn?.dnDate || 'N/A',
+    dn?.facilityName || 'N/A',
+    dn?.parentPoNumber || 'N/A',
+    dn?.skuId || 'N/A',
+    dn?.itemName || 'N/A',
+    dn?.dnQty ?? 0,
+    dn?.whPocName || 'N/A',
+    dn?.whPocContact || 'N/A',
+    dn?.lrNo || 'N/A',
+    dn?.status || 'N/A',
+    dn?.updatedByName || dn?.createdByName || 'N/A'
   ]);
 
-  const exportDnJson = filteredDNs.map((dn) => ({
-    'DN Number': dn.dnNumber,
-    'DN Date': dn.dnDate,
-    'Facility Name': dn.facilityName,
-    'Parent PO Number': dn.parentPoNumber,
-    'Parent SO': dn.parentSo,
-    'SKU ID': dn.skuId,
-    'Item Name': dn.itemName,
-    'DN Qty': dn.dnQty,
-    'WH POC Name': dn.whPocName,
-    'Contact': dn.whPocContact,
-    'LR No': dn.lrNo,
-    'Tracking No': dn.trackingNo,
-    'Status': dn.status,
-    'File Attached': dn.fileName || 'None',
-    'Created By': dn.createdByName,
-    'Created By Emp ID': dn.createdByEmpId,
+  const exportDnJson = (filteredDNs || []).map((dn) => ({
+    'DN Number': dn?.dnNumber || '',
+    'DN Date': dn?.dnDate || '',
+    'Facility Name': dn?.facilityName || '',
+    'Parent PO Number': dn?.parentPoNumber || '',
+    'Parent SO': dn?.parentSo || '',
+    'SKU ID': dn?.skuId || '',
+    'Item Name': dn?.itemName || '',
+    'DN Qty': dn?.dnQty ?? 0,
+    'WH POC Name': dn?.whPocName || '',
+    'Contact': dn?.whPocContact || '',
+    'LR No': dn?.lrNo || '',
+    'Tracking No': dn?.trackingNo || '',
+    'Status': dn?.status || '',
+    'File Attached': dn?.fileName || 'None',
+    'Created By': dn?.createdByName || '',
+    'Created By Emp ID': dn?.createdByEmpId || '',
   }));
 
   // Not logged in view: Show Auth Screen matching screenshots!
@@ -1111,8 +1183,12 @@ function MainApp() {
                     type="button"
                     onClick={() => {
                       if (window.confirm('Are you sure you want to clear all POs and start with an empty table?')) {
+                        const idsToDelete = purchaseOrders.map(p => p.id);
                         setPurchaseOrders([]);
                         localStorage.setItem('instamart_pos', JSON.stringify([]));
+                        idsToDelete.forEach(id => {
+                          deleteDoc(doc(db, 'purchase_orders', id)).catch(e => console.warn(e));
+                        });
                       }
                     }}
                     className="px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition cursor-pointer"
@@ -1815,25 +1891,25 @@ function MainApp() {
                     <div className="flex justify-between items-center">
                       <span>New PO (Backoffice):</span>
                       <strong className="text-amber-600 font-mono">
-                        {purchaseOrders.filter((p) => p.status === 'New PO').length}
+                        {(purchaseOrders || []).filter((p) => p && p.status === 'New PO').length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>In Transit (Dispatched):</span>
                       <strong className="text-blue-600 font-mono">
-                        {purchaseOrders.filter((p) => p.status === 'In Transit').length}
+                        {(purchaseOrders || []).filter((p) => p && p.status === 'In Transit').length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>GRN Completed (Inwarded):</span>
                       <strong className="text-emerald-600 font-mono">
-                        {purchaseOrders.filter((p) => p.status === 'GRN Completed').length}
+                        {(purchaseOrders || []).filter((p) => p && p.status === 'GRN Completed').length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Cancelled / Void:</span>
                       <strong className="text-rose-600 font-mono">
-                        {purchaseOrders.filter((p) => p.status === 'Cancelled').length}
+                        {(purchaseOrders || []).filter((p) => p && p.status === 'Cancelled').length}
                       </strong>
                     </div>
                   </div>
@@ -1847,19 +1923,19 @@ function MainApp() {
                     <div className="flex justify-between items-center">
                       <span>Delhivery Logistics:</span>
                       <strong className="font-mono">
-                        {purchaseOrders.filter((p) => p.logisticsPortal?.includes('Delhivery')).length}
+                        {(purchaseOrders || []).filter((p) => p && p.logisticsPortal?.includes('Delhivery')).length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Instamart Fleet:</span>
                       <strong className="font-mono">
-                        {purchaseOrders.filter((p) => p.logisticsPortal?.includes('Instamart')).length}
+                        {(purchaseOrders || []).filter((p) => p && p.logisticsPortal?.includes('Instamart')).length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>BlueDart / Shadowfax:</span>
                       <strong className="font-mono">
-                        {purchaseOrders.filter((p) => p.logisticsPortal?.includes('BlueDart') || p.logisticsPortal?.includes('Shadowfax')).length}
+                        {(purchaseOrders || []).filter((p) => p && (p.logisticsPortal?.includes('BlueDart') || p.logisticsPortal?.includes('Shadowfax'))).length}
                       </strong>
                     </div>
                   </div>
@@ -1872,18 +1948,18 @@ function MainApp() {
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between items-center">
                       <span>Total Debit Notes:</span>
-                      <strong className="font-mono text-rose-600">{dnRecords.length}</strong>
+                      <strong className="font-mono text-rose-600">{(dnRecords || []).length}</strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Accepted by WH:</span>
                       <strong className="font-mono text-emerald-600">
-                        {dnRecords.filter((d) => d.status === 'Accepted').length}
+                        {(dnRecords || []).filter((d) => d && d.status === 'Accepted').length}
                       </strong>
                     </div>
                     <div className="flex justify-between items-center">
                       <span>Pending Review:</span>
                       <strong className="font-mono text-amber-600">
-                        {dnRecords.filter((d) => d.status === 'Pending').length}
+                        {(dnRecords || []).filter((d) => d && d.status === 'Pending').length}
                       </strong>
                     </div>
                   </div>
@@ -2032,10 +2108,12 @@ function MainApp() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <MainApp />
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <MainApp />
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
