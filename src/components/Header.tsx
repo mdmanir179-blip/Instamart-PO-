@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenExpiryModal,
   expiringCount = 0
 }) => {
-  const { userProfile, isAdmin, isActive, logout } = useAuth();
+  const { userProfile, isAdmin, isActive, allUsers, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -154,22 +154,27 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Admin Shortcuts */}
             {isAdmin && (
-              <div className="hidden lg:flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={onOpenItemsModal}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 flex items-center gap-1.5 transition"
+                  className="hidden md:flex px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 items-center gap-1.5 transition cursor-pointer"
+                  title="Item Master SKU Database"
                 >
                   <Database className="w-3.5 h-3.5" />
-                  Item Master
+                  <span className="hidden lg:inline">Item Master</span>
                 </button>
                 <button
                   type="button"
                   onClick={onOpenUsersModal}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 flex items-center gap-1.5 transition"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 flex items-center gap-1.5 transition cursor-pointer relative"
+                  title="Admin Employee & Access Control"
                 >
                   <Users className="w-3.5 h-3.5" />
-                  Employees
+                  <span>Employees</span>
+                  {Array.isArray(allUsers) && allUsers.some((u) => u?.approvalStatus === 'pending' || u?.isApproved === false) && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping ml-0.5" />
+                  )}
                 </button>
               </div>
             )}

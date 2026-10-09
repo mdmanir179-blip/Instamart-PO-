@@ -17,10 +17,64 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
+  deleteDoc,
   onSnapshot, 
   collection 
 } from 'firebase/firestore';
-import { UserProfile, UserRole } from '../types';
+import { UserProfile, UserRole, EmployeePermissions, ApprovalStatus } from '../types';
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<UserRole, EmployeePermissions> = {
+  admin: {
+    canCreatePO: true,
+    canEditPO: true,
+    canDeletePO: true,
+    canUpdateLogistics: true,
+    canUpdateGRN: true,
+    canCreateDN: true,
+    canPrint: true,
+    canManageUsers: true,
+  },
+  Backoffice: {
+    canCreatePO: true,
+    canEditPO: true,
+    canDeletePO: false,
+    canUpdateLogistics: true,
+    canUpdateGRN: false,
+    canCreateDN: true,
+    canPrint: true,
+    canManageUsers: false,
+  },
+  Warehouse: {
+    canCreatePO: false,
+    canEditPO: false,
+    canDeletePO: false,
+    canUpdateLogistics: false,
+    canUpdateGRN: true,
+    canCreateDN: true,
+    canPrint: true,
+    canManageUsers: false,
+  },
+  Logistics: {
+    canCreatePO: false,
+    canEditPO: false,
+    canDeletePO: false,
+    canUpdateLogistics: true,
+    canUpdateGRN: false,
+    canCreateDN: false,
+    canPrint: true,
+    canManageUsers: false,
+  },
+  Print: {
+    canCreatePO: false,
+    canEditPO: false,
+    canDeletePO: false,
+    canUpdateLogistics: false,
+    canUpdateGRN: false,
+    canCreateDN: false,
+    canPrint: true,
+    canManageUsers: false,
+  },
+};
 
 interface AuthContextType {
   currentUser: { uid: string; email: string; displayName: string } | null;
@@ -30,12 +84,17 @@ interface AuthContextType {
   isBackoffice: boolean;
   isWarehouse: boolean;
   isActive: boolean;
+  isApproved: boolean;
   allUsers: UserProfile[];
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, pass?: string) => Promise<void>;
   signupWithEmail: (email: string, pass: string, name: string, employeeId: string, role: UserRole) => Promise<void>;
   toggleUserStatus: (uid: string, newActiveState: boolean) => Promise<void>;
   updateUserRole: (uid: string, newRole: UserRole) => Promise<void>;
+  updateUserProfile: (uid: string, updates: Partial<UserProfile>) => Promise<void>;
+  approveUser: (uid: string, permissions?: EmployeePermissions) => Promise<void>;
+  createUser: (profile: Partial<UserProfile>) => Promise<void>;
+  deleteUser: (uid: string) => Promise<void>;
   logout: () => Promise<void>;
   quickDemoLogin: (role: UserRole) => Promise<void>;
   switchUser: (user: UserProfile) => void;
@@ -52,7 +111,11 @@ const INITIAL_USERS: UserProfile[] = [
     displayName: 'Md Manir (System Admin)',
     employeeId: 'EMP-ADM-001',
     role: 'admin',
+    department: 'Admin Team',
     isActive: true,
+    isApproved: true,
+    approvalStatus: 'approved',
+    permissions: DEFAULT_ROLE_PERMISSIONS.admin,
     createdAt: '2026-10-01T00:00:00.000Z',
     lastLogin: new Date().toISOString(),
   },
@@ -62,7 +125,11 @@ const INITIAL_USERS: UserProfile[] = [
     displayName: 'Rohit Sharma (Backoffice Lead)',
     employeeId: 'EMP-BO-102',
     role: 'Backoffice',
+    department: 'Backoffice Team',
     isActive: true,
+    isApproved: true,
+    approvalStatus: 'approved',
+    permissions: DEFAULT_ROLE_PERMISSIONS.Backoffice,
     createdAt: '2026-10-02T00:00:00.000Z',
     lastLogin: new Date().toISOString(),
   },
@@ -72,7 +139,11 @@ const INITIAL_USERS: UserProfile[] = [
     displayName: 'Sanjay Das (Warehouse Manager)',
     employeeId: 'EMP-WH-504',
     role: 'Warehouse',
+    department: 'Warehouse Team',
     isActive: true,
+    isApproved: true,
+    approvalStatus: 'approved',
+    permissions: DEFAULT_ROLE_PERMISSIONS.Warehouse,
     createdAt: '2026-10-03T00:00:00.000Z',
     lastLogin: new Date().toISOString(),
   }
@@ -234,13 +305,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cleanEmail = String(email || '').trim().toLowerCase();
       const isSuper = cleanEmail === SUPER_ADMIN_EMAIL.toLowerCase();
+      const rolePerms = DEFAULT_ROLE_PERMISSIONS[isSuper ? 'admin' : role] || DEFAULT_ROLE_PERMISSIONS.Backoffice;
       const profile: UserProfile = {
         uid: `user-${Date.now()}`,
         email: email.trim(),
         displayName: name.trim(),
         employeeId: employeeId.trim().toUpperCase(),
         role: isSuper ? 'admin' : role,
+        department: isSuper ? 'Admin Team' : (role === 'Warehouse' ? 'Warehouse Team' : role === 'admin' ? 'Admin Team' : 'Backoffice Team'),
         isActive: true,
+        isApproved: isSuper ? true : false,
+        approvalStatus: isSuper ? 'approved' : 'pending',
+        permissions: rolePerms,
         createdAt: new Date().toISOString(),
         lastLogin: new Date().toISOString(),
       };
@@ -276,16 +352,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserRole = async (uid: string, newRole: UserRole) => {
+    const defaultPerms = DEFAULT_ROLE_PERMISSIONS[newRole] || DEFAULT_ROLE_PERMISSIONS.Backoffice;
     setAllUsers((prev) =>
-      prev.map((u) => (u.uid === uid ? { ...u, role: newRole } : u))
+      prev.map((u) => (u.uid === uid ? { ...u, role: newRole, permissions: u.permissions || defaultPerms } : u))
     );
     if (userProfile?.uid === uid) {
-      setUserProfile((prev) => prev ? { ...prev, role: newRole } : null);
+      setUserProfile((prev) => prev ? { ...prev, role: newRole, permissions: prev.permissions || defaultPerms } : null);
     }
     try {
       await setDoc(doc(db, 'users', uid), { role: newRole }, { merge: true });
     } catch (e) {
       console.warn('Role update failed in cloud:', e);
+    }
+  };
+
+  const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
+    setAllUsers((prev) =>
+      prev.map((u) => (u.uid === uid ? { ...u, ...updates } : u))
+    );
+    if (userProfile?.uid === uid) {
+      setUserProfile((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+    try {
+      await setDoc(doc(db, 'users', uid), updates, { merge: true });
+    } catch (e) {
+      console.warn('Profile update saved in local cache:', e);
+    }
+  };
+
+  const approveUser = async (uid: string, permissions?: EmployeePermissions) => {
+    const target = allUsers.find((u) => u.uid === uid);
+    const assignedRole = target?.role || 'Backoffice';
+    const finalPermissions = permissions || target?.permissions || DEFAULT_ROLE_PERMISSIONS[assignedRole] || DEFAULT_ROLE_PERMISSIONS.Backoffice;
+
+    const updates: Partial<UserProfile> = {
+      isApproved: true,
+      approvalStatus: 'approved',
+      isActive: true,
+      permissions: finalPermissions,
+      approvedBy: userProfile?.displayName || 'Admin',
+      approvedAt: new Date().toISOString(),
+    };
+
+    await updateUserProfile(uid, updates);
+  };
+
+  const createUser = async (profileData: Partial<UserProfile>) => {
+    const role = profileData.role || 'Backoffice';
+    const newUid = `user-${Date.now()}`;
+    const newProf: UserProfile = {
+      uid: newUid,
+      email: (profileData.email || '').trim(),
+      displayName: (profileData.displayName || '').trim(),
+      employeeId: (profileData.employeeId || `EMP-${Math.floor(1000 + Math.random() * 9000)}`).trim().toUpperCase(),
+      role: role,
+      department: profileData.department || (role === 'admin' ? 'Admin Team' : role === 'Warehouse' ? 'Warehouse Team' : 'Backoffice Team'),
+      phone: profileData.phone || '',
+      isActive: profileData.isActive ?? true,
+      isApproved: profileData.isApproved ?? true,
+      approvalStatus: profileData.approvalStatus || 'approved',
+      permissions: profileData.permissions || DEFAULT_ROLE_PERMISSIONS[role] || DEFAULT_ROLE_PERMISSIONS.Backoffice,
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      approvedBy: userProfile?.displayName || 'Admin',
+      approvedAt: new Date().toISOString(),
+    };
+
+    setAllUsers((prev) => [newProf, ...prev]);
+    try {
+      await setDoc(doc(db, 'users', newUid), newProf);
+    } catch (e) {
+      console.warn('User created locally');
+    }
+  };
+
+  const deleteUser = async (uid: string) => {
+    setAllUsers((prev) => prev.filter((u) => u.uid !== uid));
+    if (userProfile?.uid === uid) {
+      setUserProfile(null);
+    }
+    try {
+      await deleteDoc(doc(db, 'users', uid));
+    } catch (e) {
+      console.warn('User deleted locally');
     }
   };
 
@@ -323,6 +472,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isBackoffice = userProfile?.role === 'Backoffice';
   const isWarehouse = userProfile?.role === 'Warehouse';
   const isActive = userProfile?.isActive ?? true;
+  const isApproved = userProfile?.isApproved ?? (isAdmin ? true : userProfile?.approvalStatus === 'approved' ? true : !userProfile?.approvalStatus);
 
   const currentUser = userProfile
     ? { uid: userProfile.uid, email: userProfile.email, displayName: userProfile.displayName }
@@ -338,12 +488,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isBackoffice,
         isWarehouse,
         isActive,
+        isApproved,
         allUsers,
         loginWithGoogle,
         loginWithEmail,
         signupWithEmail,
         toggleUserStatus,
         updateUserRole,
+        updateUserProfile,
+        approveUser,
+        createUser,
+        deleteUser,
         logout,
         quickDemoLogin,
         switchUser,

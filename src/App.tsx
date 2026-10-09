@@ -55,7 +55,8 @@ import {
   Sparkles,
   ClipboardList,
   FileSpreadsheet,
-  LayoutDashboard
+  LayoutDashboard,
+  Users
 } from 'lucide-react';
 
 type ActiveTab = 'dashboard' | 'all_pos' | 'in_transit' | 'grn' | 'dn_tracker' | 'offline_sheet' | 'catalog' | 'analytics';
@@ -359,7 +360,9 @@ function MainApp() {
     isAdmin, 
     isBackoffice, 
     isWarehouse, 
-    isActive 
+    isActive,
+    isApproved,
+    allUsers 
   } = useAuth();
   
   const { theme } = useTheme();
@@ -998,6 +1001,14 @@ function MainApp() {
         </div>
       )}
 
+      {/* Account Pending Approval Alert Banner */}
+      {isActive && !isApproved && (
+        <div className="bg-amber-600 text-white px-4 py-2.5 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-md">
+          <AlertTriangle className="w-4 h-4 animate-bounce" />
+          <span>Notice: Your employee account is pending Admin approval. Full permissions will be activated once approved by Administrator.</span>
+        </div>
+      )}
+
       {/* Container - Desktop Computer Full Screen Layout */}
       <main className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-5">
         <div>
@@ -1118,6 +1129,24 @@ function MainApp() {
               <TrendingUp className="w-4 h-4" />
               Analytics & Audit
             </button>
+
+            {/* 9. Admin Employee Control & Approval */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setIsUsersModalOpen(true)}
+                className="flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition whitespace-nowrap cursor-pointer bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 ml-auto"
+                title="Admin Control: Approve, Edit & Update all Employees and Permissions"
+              >
+                <Users className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Employees & Permissions</span>
+                {Array.isArray(allUsers) && allUsers.some((u) => u?.approvalStatus === 'pending' || u?.isApproved === false) && (
+                  <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-white text-[10px] font-black animate-pulse">
+                    {allUsers.filter((u) => u?.approvalStatus === 'pending' || u?.isApproved === false).length} Pending
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* TAB: DASHBOARD (Home View) */}

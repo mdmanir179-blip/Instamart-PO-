@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'Backoffice' | 'Warehouse';
+export type UserRole = 'admin' | 'Backoffice' | 'Warehouse' | 'Logistics' | 'Print';
 
 export type Department = 
   | 'Admin Team' 
@@ -6,6 +6,19 @@ export type Department =
   | 'Warehouse Team' 
   | 'Logistics Team' 
   | 'Print Team';
+
+export type ApprovalStatus = 'approved' | 'pending' | 'rejected';
+
+export interface EmployeePermissions {
+  canCreatePO: boolean;
+  canEditPO: boolean;
+  canDeletePO: boolean;
+  canUpdateLogistics: boolean;
+  canUpdateGRN: boolean;
+  canCreateDN: boolean;
+  canPrint: boolean;
+  canManageUsers: boolean;
+}
 
 export type ThemeMode = 'light' | 'grey' | 'dark';
 
@@ -16,9 +29,15 @@ export interface UserProfile {
   employeeId: string;
   role: UserRole;
   department?: Department;
+  phone?: string;
   isActive: boolean;
+  isApproved?: boolean;
+  approvalStatus?: ApprovalStatus;
+  permissions?: EmployeePermissions;
   createdAt: string;
   lastLogin?: string;
+  approvedBy?: string;
+  approvedAt?: string;
 }
 
 export interface ItemMaster {
